@@ -40,6 +40,7 @@ int main()
   projectile.h = 8;
 
   int moveSpeed = 1;
+  int collided = 0;
 
   // initialise SDL and check that it worked otherwise exit
   // see here for details http://wiki.libsdl.org/CategoryAPI
@@ -176,6 +177,19 @@ int main()
   if(projectileActive)
   {
     shootPewPew(ren, &projectile, &projectileActive);
+
+    /*for(int r=0; r<ROWS; ++r)
+    {
+      for(int c=0; c<COLS; ++c)
+      {*/
+        if(300 <= projectile.x <= 450 && 0 <= projectile.y <= 100)
+        {
+          //invaders[r][c].active = 0;
+          collided = 1;
+        }
+   //   }
+    //}
+
     if(projectile.y <= 0)
     {
       projectileActive = 0;
@@ -243,7 +257,7 @@ void drawSpaceShip(SDL_Renderer *ren, SDL_Texture *sStexture, SDL_Rect spaceShip
 void shootPewPew(SDL_Renderer *ren, SDL_Rect *projectile, int *projectileActive)
 {
   *projectileActive = 1;
-  projectile->y -= projectile->h;
+  projectile->y -= 2;
   SDL_SetRenderDrawColor(ren, 255, 255, 255, 255);
   SDL_RenderFillRect(ren, projectile);
 }
