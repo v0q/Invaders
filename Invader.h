@@ -3,8 +3,8 @@
 
 enum InvaderType{TYPE1,TYPE2,TYPE3};
 
-#define SPRITEWIDTH 30
-#define SPRITEHEIGHT 30
+#define SPRITEWIDTH 34
+#define SPRITEHEIGHT 25
 #define COLS 11
 #define ROWS 5
 #define GAP 10

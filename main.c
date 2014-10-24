@@ -8,6 +8,7 @@
 #define WIDTH 800
 // the height of the screen taking into account the maze and block
 #define HEIGHT 600
+#define ANIMATIONSTEP 2500
 
 enum DIRECTION{LEFT,RIGHT};
 
@@ -18,7 +19,7 @@ void drawInvaders(SDL_Renderer *ren,SDL_Texture *tex,Invader invaders[ROWS][COLS
 void moveSpaceShip(SDL_Rect *spaceShip, int moveDir, int moveSpeed);
 void drawSpaceShip(SDL_Renderer *ren, SDL_Texture *sStexture, SDL_Rect spaceShip);
 
-void shootPewPew(SDL_Renderer *ren, SDL_Rect *projectile, int *projectileActive, int moveSpeed);
+void shootPewPew(SDL_Renderer *ren, SDL_Rect *projectile, SDL_Texture *tex,  int *projectileActive, int moveSpeed);
 
 int main()
 {
@@ -36,10 +37,11 @@ int main()
   SDL_Rect projectile;
   projectile.x = 0;
   projectile.y = spaceShip.y;
-  projectile.w = 2;
-  projectile.h = 8;
+  projectile.w = 6;
+  projectile.h = 18;
 
   int moveSpeed = 1;
+
 
   // initialise SDL and check that it worked otherwise exit
   // see here for details http://wiki.libsdl.org/CategoryAPI
@@ -75,7 +77,7 @@ int main()
   SDL_Surface *image;
 //  // we are going to use the extension SDL_image library to load a png, documentation can be found here
 //  // http://www.libsdl.org/projects/SDL_image/
-  image=IMG_Load("InvaderA2.bmp");
+  image=IMG_Load("sprites.png");
   if(!image)
   {
     printf("IMG_Load: %s\n", IMG_GetError());
@@ -177,7 +179,7 @@ int main()
   if(projectileActive)
   {
     // Run the stuff to move the projectile
-    shootPewPew(ren, &projectile, &projectileActive, moveSpeed);
+    shootPewPew(ren, &projectile, tex, &projectileActive, moveSpeed);
 
     // Run through the invaders
     for(int r=0; r<ROWS; ++r)
@@ -193,7 +195,7 @@ int main()
            invaders[r][c].active)
         {
           // If the projectile hits a target, "deactive"/destroy it and destroy the projectile
-          invaders[r][c].active = 0;
+          invaders[r][c].frame = 3;
           projectileActive = 0;
         }
 
@@ -203,7 +205,7 @@ int main()
     // If the projectile reaches the top, destroy it
     if(projectile.y <= 0)
     {
-      projectileActive = 0;
+      projectileExplosion = 1;
     }
   }
 
@@ -211,9 +213,9 @@ int main()
   drawInvaders(ren,tex,invaders);
   drawSpaceShip(ren, sStexture, spaceShip);
 
-  //SDL_RenderFillRect(ren, &spaceShip);
   // Up until now everything was drawn behind the scenes.
   // This will show the new, red contents of the window.
+
   SDL_RenderPresent(ren);
 
   }
@@ -268,12 +270,19 @@ void drawSpaceShip(SDL_Renderer *ren, SDL_Texture *sStexture, SDL_Rect spaceShip
   SDL_RenderCopy(ren, sStexture, &sS_sprite, &spaceShip);
 }
 
-void shootPewPew(SDL_Renderer *ren, SDL_Rect *projectile, int *projectileActive, int moveSpeed)
+void shootPewPew(SDL_Renderer *ren, SDL_Rect *projectile, SDL_Texture *tex, int *projectileActive, int moveSpeed)
 {
+  SDL_Rect projectileSprite;
+  projectileSprite.x = 468;
+  projectileSprite.y = 379;
+  projectileSprite.w = 27;
+  projectileSprite.h = 50;
+
   *projectileActive = 1;
-  projectile->y -= 4*moveSpeed;
+  projectile->y -= 8*moveSpeed;
   SDL_SetRenderDrawColor(ren, 255, 255, 255, 255);
-  SDL_RenderFillRect(ren, projectile);
+  SDL_RenderCopy(ren, tex, &projectileSprite, projectile);
+  //SDL_RenderFillRect(ren, projectile);
 }
 
 void initializeInvaders(Invader invaders[ROWS][COLS])
@@ -310,20 +319,62 @@ void initializeInvaders(Invader invaders[ROWS][COLS])
 void drawInvaders(SDL_Renderer *ren, SDL_Texture *tex, Invader invaders[ROWS][COLS])
 {
   SDL_Rect SrcR;
-  SrcR.x=0;
-  SrcR.y=0;
-  SrcR.w=88;
-  SrcR.h=64;
+  static int destroySequence = 0;
+
   for(int r=0; r<ROWS; ++r)
   {
     for(int c=0; c<COLS; ++c)
     {
-      switch(invaders[r][c].type)
+      if(invaders[r][c].frame == 3)
       {
-      case TYPE1 : SDL_SetRenderDrawColor(ren, 255, 0, 0, 255); break;
-      case TYPE2 : SDL_SetRenderDrawColor(ren, 0, 255, 0, 255); break;
-      case TYPE3 : SDL_SetRenderDrawColor(ren, 0, 0, 255, 255); break;
+        SrcR.x=340;
+        SrcR.y=616;
+        SrcR.w=95;
+        SrcR.h=59;
+        destroySequence += 1;
       }
+      else
+      {
+
+        switch(invaders[r][c].type)
+        {
+          case TYPE1 :
+          {
+            SDL_SetRenderDrawColor(ren, 255, 0, 0, 255);
+            SrcR.x=292+(117*invaders[r][c].frame);
+            SrcR.y=0;
+            SrcR.w=80;
+            SrcR.h=80;
+            break;
+          }
+          case TYPE2 :
+          {
+            SDL_SetRenderDrawColor(ren, 0, 255, 0, 255);
+            SrcR.x=145*invaders[r][c].frame;
+            SrcR.y=0;
+            SrcR.w=111;
+            SrcR.h=80;
+            break;
+          }
+          case TYPE3 :
+          {
+            SDL_SetRenderDrawColor(ren, 0, 0, 255, 255);
+            SrcR.x=140*invaders[r][c].frame;
+            SrcR.y=120;
+            SrcR.w=120;
+            SrcR.h=80;
+            break;
+          }
+        }
+      }
+
+      if(destroySequence == 10)
+      {
+        destroySequence = 0;
+        invaders[r][c].active = 0;
+        invaders[r][c].frame = 0;
+      }
+
       if(invaders[r][c].active)
       {
         SDL_RenderFillRect(ren,&invaders[r][c].pos);
@@ -339,13 +390,57 @@ void updateInvaders(Invader invaders[ROWS][COLS], int moveSpeed)
   enum DIR{FWD,BWD};
   static int DIRECTION=FWD;
   int yinc=0;
-  if(invaders[0][COLS].pos.x>=(WIDTH-SPRITEWIDTH)-(COLS*(SPRITEWIDTH+GAP)))
+  static int actColR = COLS-1;
+  static int actColL = 0;
+  int stopLoop = 0;
+
+  // Loop through the column from right to find the active outermost column on right
+  for(int c = COLS-1; c >= 0; --c)
+    {
+      // Loop through all the rows in a column
+      for(int r = 0; r < ROWS; ++r)
+      {
+        if(invaders[r][c].active)
+        {
+          actColR = c;
+          stopLoop = 1;
+          break;
+        }
+      }
+      if(stopLoop)
+      {
+        break;
+      }
+  }
+
+  stopLoop = 0;
+
+  // Loop through the column from left to find the active outermost column on left
+  for(int c = 0; c < COLS; ++c)
+    {
+      // Loop through all the rows in a column
+      for(int r = 0; r < ROWS; ++r)
+      {
+        if(invaders[r][c].active)
+        {
+          actColL = c;
+          stopLoop = 1;
+          break;
+        }
+      }
+      if(stopLoop)
+      {
+        break;
+      }
+  }
+
+  if(invaders[0][actColR].pos.x>=WIDTH-(SPRITEWIDTH*2))
   {
     DIRECTION=BWD;
     yinc=GAP;
-
   }
-  else if(invaders[0][0].pos.x<=SPRITEWIDTH)
+
+  else if(invaders[0][actColL].pos.x<=SPRITEWIDTH)
   {
     DIRECTION=FWD;
     yinc=GAP;
@@ -357,10 +452,22 @@ void updateInvaders(Invader invaders[ROWS][COLS], int moveSpeed)
     for(int c=0; c<COLS; ++c)
     {
       if(DIRECTION==FWD)
+      {
         invaders[r][c].pos.x+=1*moveSpeed;
+      }
       else
+      {
         invaders[r][c].pos.x-=1*moveSpeed;
-      invaders[r][c].pos.y+=yinc;
+      }
+
+      if(invaders[r][c].pos.x%40 == 0 && invaders[r][c].frame != 3)
+      {
+        invaders[r][c].frame += 1;
+        if(invaders[r][c].frame%2 == 0)
+        {
+          invaders[r][c].frame = 0;
+        }
+      }
 
     }
   }
