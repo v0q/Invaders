@@ -18,7 +18,7 @@ void drawInvaders(SDL_Renderer *ren,SDL_Texture *tex,Invader invaders[ROWS][COLS
 void moveSpaceShip(SDL_Rect *spaceShip, int moveDir, int moveSpeed);
 void drawSpaceShip(SDL_Renderer *ren, SDL_Texture *sStexture, SDL_Rect spaceShip);
 
-void shootPewPew(SDL_Renderer *ren, SDL_Rect *projectile, int *projectileActive);
+void shootPewPew(SDL_Renderer *ren, SDL_Rect *projectile, int *projectileActive, int moveSpeed);
 
 int main()
 {
@@ -40,7 +40,6 @@ int main()
   projectile.h = 8;
 
   int moveSpeed = 1;
-  int collided = 0;
 
   // initialise SDL and check that it worked otherwise exit
   // see here for details http://wiki.libsdl.org/CategoryAPI
@@ -174,22 +173,34 @@ int main()
   SDL_SetRenderDrawColor(ren, 0, 0, 0, 255);
   SDL_RenderClear(ren);
 
+  // Check if projectile has been shot
   if(projectileActive)
   {
-    shootPewPew(ren, &projectile, &projectileActive);
+    // Run the stuff to move the projectile
+    shootPewPew(ren, &projectile, &projectileActive, moveSpeed);
 
-    /*for(int r=0; r<ROWS; ++r)
+    // Run through the invaders
+    for(int r=0; r<ROWS; ++r)
     {
       for(int c=0; c<COLS; ++c)
-      {*/
-        if(300 <= projectile.x <= 450 && 0 <= projectile.y <= 100)
-        {
-          //invaders[r][c].active = 0;
-          collided = 1;
-        }
-   //   }
-    //}
+      {
 
+        // Check if the projectile collides with any of 'em
+        if(invaders[r][c].pos.x   <=  projectile.x                      &&
+           projectile.x           <=  invaders[r][c].pos.x+SPRITEWIDTH  &&
+           invaders[r][c].pos.y   <=  projectile.y                      &&
+           projectile.y           <=  invaders[r][c].pos.y+SPRITEHEIGHT &&
+           invaders[r][c].active)
+        {
+          // If the projectile hits a target, "deactive"/destroy it and destroy the projectile
+          invaders[r][c].active = 0;
+          projectileActive = 0;
+        }
+
+      }
+    }
+
+    // If the projectile reaches the top, destroy it
     if(projectile.y <= 0)
     {
       projectileActive = 0;
@@ -213,10 +224,12 @@ int main()
 
 void moveSpaceShip(SDL_Rect *spaceShip, int moveDir, int moveSpeed)
 {
+  // Movement stuff
   switch(moveDir)
   {
     case LEFT:
     {
+      // "Boundary collision left"
       if(spaceShip->x > 0+SPRITEWIDTH)
       {
         spaceShip->x -= 5*moveSpeed;
@@ -229,6 +242,7 @@ void moveSpaceShip(SDL_Rect *spaceShip, int moveDir, int moveSpeed)
     }
     case RIGHT:
     {
+      // "Boundary collision right"
       if(spaceShip->x < WIDTH-2*(SPRITEWIDTH))
       {
         spaceShip->x += 5*moveSpeed;
@@ -254,10 +268,10 @@ void drawSpaceShip(SDL_Renderer *ren, SDL_Texture *sStexture, SDL_Rect spaceShip
   SDL_RenderCopy(ren, sStexture, &sS_sprite, &spaceShip);
 }
 
-void shootPewPew(SDL_Renderer *ren, SDL_Rect *projectile, int *projectileActive)
+void shootPewPew(SDL_Renderer *ren, SDL_Rect *projectile, int *projectileActive, int moveSpeed)
 {
   *projectileActive = 1;
-  projectile->y -= 2;
+  projectile->y -= 4*moveSpeed;
   SDL_SetRenderDrawColor(ren, 255, 255, 255, 255);
   SDL_RenderFillRect(ren, projectile);
 }
@@ -310,9 +324,11 @@ void drawInvaders(SDL_Renderer *ren, SDL_Texture *tex, Invader invaders[ROWS][CO
       case TYPE2 : SDL_SetRenderDrawColor(ren, 0, 255, 0, 255); break;
       case TYPE3 : SDL_SetRenderDrawColor(ren, 0, 0, 255, 255); break;
       }
-      SDL_RenderFillRect(ren,&invaders[r][c].pos);
-      SDL_RenderCopy(ren, tex,&SrcR,&invaders[r][c].pos);
-
+      if(invaders[r][c].active)
+      {
+        SDL_RenderFillRect(ren,&invaders[r][c].pos);
+        SDL_RenderCopy(ren, tex,&SrcR,&invaders[r][c].pos);
+      }
 
     }
   }
