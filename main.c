@@ -1,5 +1,6 @@
 #include <SDL.h>
 #include <SDL_image.h>
+#include <SDL_mixer.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include "Invader.h"
@@ -12,6 +13,13 @@
 
 enum DIRECTION{LEFT,RIGHT};
 
+// Put the sound file to a variable
+static const char *theme = "Space Invaders Soundtrack.mp3";
+/// http://www.youtube.com/watch?v=fyTeZn2b46U
+/// 'cdave' (April 13, 2014). GitHub Gist
+/// Available from: https://gist.github.com/cdave1/10563386 [Accessed 24 October 2014].
+
+// Declaring the functions
 void initializeInvaders(Invader invaders[ROWS][COLS]);
 void updateInvaders(Invader invaders[ROWS][COLS], int moveSpeed);
 void drawInvaders(SDL_Renderer *ren,SDL_Texture *tex,Invader invaders[ROWS][COLS]);
@@ -19,30 +27,37 @@ void drawInvaders(SDL_Renderer *ren,SDL_Texture *tex,Invader invaders[ROWS][COLS
 void moveSpaceShip(SDL_Rect *spaceShip, int moveDir, int moveSpeed);
 void drawSpaceShip(SDL_Renderer *ren, SDL_Texture *sStexture, SDL_Rect spaceShip);
 
-void shootPewPew(SDL_Renderer *ren, SDL_Rect *projectile, SDL_Texture *tex,  int *projectileActive, int moveSpeed, int *projectileExplosion);
+void shootPewPew(SDL_Renderer *ren, SDL_Rect *projectile, SDL_Texture *tex, int moveSpeed);
+void explodeProjectile(SDL_Renderer *ren, SDL_Rect *projectileBoom, SDL_Texture *tex, int *explodeP);
 
 int main()
 {
   Invader invaders[ROWS][COLS];
   initializeInvaders(invaders);
-  Uint8 *keystate = SDL_GetKeyboardState(NULL);
 
-  // Initialize the spaceship & sprite position
+  // Create a variable that records the key presses (continuous)
+  const Uint8 *keystate = SDL_GetKeyboardState(NULL);
+
+  // Initializing the spaceship "holder" and position
   SDL_Rect spaceShip;
   spaceShip.x = (WIDTH-SPRITEWIDTH)/2;
   spaceShip.y = HEIGHT-50;
   spaceShip.w = SPRITEWIDTH;
   spaceShip.h = 20;
 
+  // Initializing projectile
   SDL_Rect projectile;
   projectile.x = 0;
   projectile.y = spaceShip.y;
   projectile.w = 6;
   projectile.h = 18;
 
+  SDL_Rect projectileBoom;
+  projectile.y = 0;
+
   int moveSpeed = 1;
-  int projectileExplosion = 0;
   int projectileActive = 0;
+  int explodeP = 0;
   int quit=0;
 
   // initialise SDL and check that it worked otherwise exit
@@ -52,8 +67,24 @@ int main()
     printf("%s\n",SDL_GetError());
     return EXIT_FAILURE;
   }
-  // we are now going to create an SDL window
 
+  // Music stuff
+  int result = 0;
+  int flags = MIX_INIT_MP3;
+
+  if (flags != (result = Mix_Init(flags))) {
+   printf("Could not initialize mixer (result: %d).\n", result);
+   printf("Mix_Init: %s\n", Mix_GetError());
+   exit(1);
+  }
+
+  Mix_OpenAudio(22050, AUDIO_S16SYS, 2, 640);
+  Mix_Music *music = Mix_LoadMUS(theme);
+  Mix_PlayMusic(music, 1);
+  /// 'cdave' (April 13, 2014). GitHub Gist
+  /// Available from: https://gist.github.com/cdave1/10563386 [Accessed 24 October 2014].
+
+  // we are now going to create an SDL window
   SDL_Window *win = 0;
   win = SDL_CreateWindow("Invaders", 100, 100, WIDTH, HEIGHT, SDL_WINDOW_SHOWN);
   if (win == 0)
@@ -94,10 +125,7 @@ int main()
   SDL_FreeSurface(image);
 
 
-  // Stuff for initializing the spaceship
-
-  // Load the spaceships textures
-
+  // Loading the texture for the spaceship
   SDL_Surface *sShip;
   sShip=IMG_Load("Ship.png");
   if(!sShip)
@@ -116,6 +144,8 @@ int main()
   while (quit !=1)
   {
 
+    // Checking if LEFT or RIGHT key (optionally A or D) is pressed and running the moveSpaceShip function accordingly.
+    // Using the SDL_GetKeyboardState instead so the movement doesn't stop when pressing another key.
     if(keystate[SDL_SCANCODE_LEFT] || keystate[SDL_SCANCODE_A])
     {
       moveSpaceShip(&spaceShip, LEFT, moveSpeed);
@@ -140,18 +170,29 @@ int main()
 
         // if we have an escape quit
         case SDLK_ESCAPE : quit=1; break;
+
+        // Run shooting related stuff if space is presset
         case SDLK_SPACE :
         {
+          // Checking if a projectile already exists (is shot and still flying) as we restrict the amount of simultanious projectiles to one.
           if(!projectileActive)
           {
+            // If no projectile exists, registers the current x and y position of the spaceship,
+            // to get the coordinates from where the projectile should launch
             projectile.x = spaceShip.x+(SPRITEWIDTH/2-1);
             projectile.y = spaceShip.y;
+
+            // Now that the projectile is about to shoot, change the projectileActive to true to prevent more projectiles to be shot
+            // at the same time
             projectileActive = 1;
           }
           break;
         }
+
+        // A little bit of extra, adding an option where you can increase or decrease game speed with NUMPAD + and -
         case SDLK_KP_PLUS :
         {
+          // Restricting the max movement speed increase to *9
           if(moveSpeed < 9)
           {
             moveSpeed += 2;
@@ -160,6 +201,7 @@ int main()
         }
         case SDLK_KP_MINUS :
         {
+          // Restricting the min movement speed to normal speed
           if(moveSpeed > 1)
           {
             moveSpeed -= 2;
@@ -178,15 +220,26 @@ int main()
   // Check if projectile has been shot
   if(projectileActive)
   {
-    // If the projectile reaches the top, destroy it
+    // Check the projectile reaches the top of the screen and destroy it
     if(projectile.y <= 0)
     {
-      projectileExplosion = 1;
+      // Assign some variables needed for the "explosion" of the projectile
+      // As the width of the explosion if different from the projectiles width, we're gonna move the x coordinate of the explosion
+      // half the sprites width to left
+      projectileBoom.x = projectile.x - SPRITEWIDTH/2;
+
+      // Activate the variable determining that an explosion should happen
+      explodeP = 1;
+      projectileActive = 0;
     }
 
-    // Run the stuff to move the projectile
-    shootPewPew(ren, &projectile, tex, &projectileActive, moveSpeed, &projectileExplosion);
-    // Run through the invaders
+    // Pass the stuff needed to display and move the projectile to the function
+    shootPewPew(ren, &projectile, tex, moveSpeed);
+
+    // Check if the projectile collides with an invader by running through all the invaders with for loops
+    // and checking if the coordinates of the projectile hit an invader.
+    // This is done by checking if the projectiles x-coordinate is between the invaders x-coordinate and x-coordinate + SPRITEWIDTH
+    // and if the projectiles y-coordinate is between the y-coordinate and y-coordinate + SPRITEHEIGHT of an invader
     for(int r=0; r<ROWS; ++r)
     {
       for(int c=0; c<COLS; ++c)
@@ -199,7 +252,8 @@ int main()
            projectile.y           <=  invaders[r][c].pos.y+SPRITEHEIGHT &&
            invaders[r][c].active)
         {
-          // If the projectile hits a target, "deactive"/destroy it and destroy the projectile
+          // If the projectile hits a target, destroy the projectile and change the frame of that specific invader
+          // to 3 which equals to the explosion "animation", the actual destroyal of the object happens later when the explosion is complete.
           invaders[r][c].frame = 3;
           projectileActive = 0;
         }
@@ -209,6 +263,14 @@ int main()
 
   }
 
+  // Checks if an explosion sequence should be run
+  if(explodeP)
+  {
+    // If yes, pass the needed stuff to a function handling the explosion
+    explodeProjectile(ren, &projectileBoom, tex, &explodeP);
+  }
+
+  // Running the stuff that handles invader movement, drawing/rendering and spaceship rendering
   updateInvaders(invaders, moveSpeed);
   drawInvaders(ren,tex,invaders);
   drawSpaceShip(ren, sStexture, spaceShip);
@@ -219,6 +281,11 @@ int main()
   SDL_RenderPresent(ren);
 
   }
+
+  // Music stuff
+  Mix_FreeMusic(music);
+  /// 'cdave' (April 13, 2014). GitHub Gist
+  /// Available from: https://gist.github.com/cdave1/10563386 [Accessed 24 October 2014].
 
   SDL_Quit();
   return 0;
@@ -270,40 +337,43 @@ void drawSpaceShip(SDL_Renderer *ren, SDL_Texture *sStexture, SDL_Rect spaceShip
   SDL_RenderCopy(ren, sStexture, &sS_sprite, &spaceShip);
 }
 
-void shootPewPew(SDL_Renderer *ren, SDL_Rect *projectile, SDL_Texture *tex, int *projectileActive, int moveSpeed, int *projectileExplosion)
+void shootPewPew(SDL_Renderer *ren, SDL_Rect *projectile, SDL_Texture *tex, int moveSpeed)
 {
   SDL_Rect projectileSprite;
+  projectileSprite.x = 468;
+  projectileSprite.y = 379;
+  projectileSprite.w = 27;
+  projectileSprite.h = 50;
 
-  SDL_Rect projectileBoom;
-  projectileBoom.x = projectile->x - SPRITEWIDTH/2;
-  projectileBoom.y = projectile->y;
-  projectileBoom.w = SPRITEWIDTH;
-  projectileBoom.h = 20;
+  projectile->y -= 8*moveSpeed;
 
-  if(!*projectileExplosion)
-  {
-    projectile->y -= 8*moveSpeed;
-    projectileSprite.x = 468;
-    projectileSprite.y = 379;
-    projectileSprite.w = 27;
-    projectileSprite.h = 50;
-    SDL_RenderCopy(ren, tex, &projectileSprite, projectile);
-  }
-  else
-  {
-    *projectileExplosion = 0;
-    *projectileActive = 0;
+  SDL_RenderCopy(ren, tex, &projectileSprite, projectile);
+
+}
+
+void explodeProjectile(SDL_Renderer *ren, SDL_Rect *projectileBoom, SDL_Texture *tex, int *explodeP)
+{
+    static int delay = 0;
+    projectileBoom->w = SPRITEWIDTH;
+    projectileBoom->h = 20;
+
+    SDL_Rect projectileSprite;
     projectileSprite.x = 218;
     projectileSprite.y = 616;
     projectileSprite.w = 105;
     projectileSprite.h = 61;
-    SDL_RenderCopy(ren, tex, &projectileSprite, &projectileBoom);
 
-  }
+    delay += 1;
 
-  //SDL_SetRenderDrawColor(ren, 255, 255, 255, 255);
-
-  //SDL_RenderFillRect(ren, projectile);
+    if(delay < 5)
+    {
+      SDL_RenderCopy(ren, tex, &projectileSprite, projectileBoom);
+    }
+    else
+    {
+      *explodeP = 0;
+      delay = 0;
+    }
 }
 
 void initializeInvaders(Invader invaders[ROWS][COLS])
