@@ -4,7 +4,7 @@ DESTDIR=./
 SOURCES+=main.c
 HEADERS+=Invader.h
 cache()
-QMAKE_CFLAGS+=-std=c99
+QMAKE_CFLAGS+=-std=c99 -Wall -g
 QMAKE_CFLAGS+=$$system(sdl2-config  --cflags)
 message(output from sdl2-config --cflags added to CXXFLAGS= $$QMAKE_CFLAGS)
 INCLUDEPATH+=/usr/local/include/SDL2

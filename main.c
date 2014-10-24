@@ -8,34 +8,38 @@
 #define WIDTH 800
 // the height of the screen taking into account the maze and block
 #define HEIGHT 600
-// an enumeration for direction to move USE more enums!
-enum DIRECTION{UP,DOWN,LEFT,RIGHT,NONE};
+
+enum DIRECTION{LEFT,RIGHT};
 
 void initializeInvaders(Invader invaders[ROWS][COLS]);
-void updateInvaders(Invader invaders[ROWS][COLS]);
+void updateInvaders(Invader invaders[ROWS][COLS], int moveSpeed);
 void drawInvaders(SDL_Renderer *ren,SDL_Texture *tex,Invader invaders[ROWS][COLS]);
 
-void moveSpaceShip(SDL_Rect spaceShip, int moveDir);
+void moveSpaceShip(SDL_Rect *spaceShip, int moveDir, int moveSpeed);
+void drawSpaceShip(SDL_Renderer *ren, SDL_Texture *sStexture, SDL_Rect spaceShip);
+
+void shootPewPew(SDL_Renderer *ren, SDL_Rect *projectile, int *projectileActive);
 
 int main()
 {
   Invader invaders[ROWS][COLS];
   initializeInvaders(invaders);
+  Uint8 *keystate = SDL_GetKeyboardState(NULL);
 
   // Initialize the spaceship & sprite position
   SDL_Rect spaceShip;
-  spaceShip.x = (WIDTH+SPRITEWIDTH)/2;
+  spaceShip.x = (WIDTH-SPRITEWIDTH)/2;
   spaceShip.y = HEIGHT-50;
   spaceShip.w = SPRITEWIDTH;
   spaceShip.h = 20;
 
-  SDL_Rect sS_sprite;
-  sS_sprite.x = 0;
-  sS_sprite.y = 0;
-  sS_sprite.w = 73;
-  sS_sprite.h = 52;
+  SDL_Rect projectile;
+  projectile.x = 0;
+  projectile.y = spaceShip.y;
+  projectile.w = 2;
+  projectile.h = 8;
 
-
+  int moveSpeed = 1;
 
   // initialise SDL and check that it worked otherwise exit
   // see here for details http://wiki.libsdl.org/CategoryAPI
@@ -103,13 +107,22 @@ int main()
 
   SDL_FreeSurface(sShip);
 
-
-
+  int projectileActive = 0;
   int quit=0;
   // now we are going to loop forever, process the keys then draw
 
   while (quit !=1)
   {
+
+    if(keystate[SDL_SCANCODE_LEFT] || keystate[SDL_SCANCODE_A])
+    {
+      moveSpaceShip(&spaceShip, LEFT, moveSpeed);
+    }
+    if(keystate[SDL_SCANCODE_RIGHT] || keystate[SDL_SCANCODE_D])
+    {
+      moveSpaceShip(&spaceShip, RIGHT, moveSpeed);
+    }
+
     SDL_Event event;
     // grab the SDL even (this will be keys etc)
     while (SDL_PollEvent(&event))
@@ -122,10 +135,35 @@ int main()
       {
         switch (event.key.keysym.sym)
         {
+
         // if we have an escape quit
         case SDLK_ESCAPE : quit=1; break;
-        case SDLK_LEFT : moveSpaceShip(spaceShip, LEFT); break;
-        case SDLK_RIGHT : moveSpaceShip(spaceShip, RIGHT); break;
+        case SDLK_SPACE :
+        {
+          if(!projectileActive)
+          {
+            projectile.x = spaceShip.x+(SPRITEWIDTH/2-1);
+            projectile.y = spaceShip.y;
+            projectileActive = 1;
+          }
+          break;
+        }
+        case SDLK_KP_PLUS :
+        {
+          if(moveSpeed < 9)
+          {
+            moveSpeed += 2;
+          }
+          break;
+        }
+        case SDLK_KP_MINUS :
+        {
+          if(moveSpeed > 1)
+          {
+            moveSpeed -= 2;
+          }
+          break;
+        }
 
        }
     }
@@ -134,8 +172,21 @@ int main()
   // now we clear the screen (will use the clear colour set previously)
   SDL_SetRenderDrawColor(ren, 0, 0, 0, 255);
   SDL_RenderClear(ren);
-  updateInvaders(invaders);
+
+  if(projectileActive)
+  {
+    shootPewPew(ren, &projectile, &projectileActive);
+    if(projectile.y <= 0)
+    {
+      projectileActive = 0;
+    }
+  }
+
+  updateInvaders(invaders, moveSpeed);
   drawInvaders(ren,tex,invaders);
+  drawSpaceShip(ren, sStexture, spaceShip);
+
+  //SDL_RenderFillRect(ren, &spaceShip);
   // Up until now everything was drawn behind the scenes.
   // This will show the new, red contents of the window.
   SDL_RenderPresent(ren);
@@ -146,22 +197,55 @@ int main()
   return 0;
 }
 
-void moveSpaceShip(int *spaceShip_x, int moveDir)
+void moveSpaceShip(SDL_Rect *spaceShip, int moveDir, int moveSpeed)
 {
-    switch(moveDir)
+  switch(moveDir)
+  {
+    case LEFT:
     {
-        case LEFT:
-        {
-            spaceShip.x -= 1;
-            break;
-        }
-        case RIGHT:
-        {
-            spaceShip.x += 1;
-            break;
-        }
-
+      if(spaceShip->x > 0+SPRITEWIDTH)
+      {
+        spaceShip->x -= 5*moveSpeed;
+      }
+      else
+      {
+        spaceShip->x = 0;
+      }
+      break;
     }
+    case RIGHT:
+    {
+      if(spaceShip->x < WIDTH-2*(SPRITEWIDTH))
+      {
+        spaceShip->x += 5*moveSpeed;
+      }
+      else
+      {
+        spaceShip->x = WIDTH-SPRITEWIDTH;
+      }
+
+      break;
+    }
+  }
+}
+
+void drawSpaceShip(SDL_Renderer *ren, SDL_Texture *sStexture, SDL_Rect spaceShip)
+{
+  SDL_Rect sS_sprite;
+  sS_sprite.x = 0;
+  sS_sprite.y = 0;
+  sS_sprite.w = 73;
+  sS_sprite.h = 52;
+
+  SDL_RenderCopy(ren, sStexture, &sS_sprite, &spaceShip);
+}
+
+void shootPewPew(SDL_Renderer *ren, SDL_Rect *projectile, int *projectileActive)
+{
+  *projectileActive = 1;
+  projectile->y -= projectile->h;
+  SDL_SetRenderDrawColor(ren, 255, 255, 255, 255);
+  SDL_RenderFillRect(ren, projectile);
 }
 
 void initializeInvaders(Invader invaders[ROWS][COLS])
@@ -220,7 +304,7 @@ void drawInvaders(SDL_Renderer *ren, SDL_Texture *tex, Invader invaders[ROWS][CO
   }
 }
 
-void updateInvaders(Invader invaders[ROWS][COLS])
+void updateInvaders(Invader invaders[ROWS][COLS], int moveSpeed)
 {
   enum DIR{FWD,BWD};
   static int DIRECTION=FWD;
@@ -243,9 +327,9 @@ void updateInvaders(Invader invaders[ROWS][COLS])
     for(int c=0; c<COLS; ++c)
     {
       if(DIRECTION==FWD)
-        invaders[r][c].pos.x+=1;
+        invaders[r][c].pos.x+=1*moveSpeed;
       else
-        invaders[r][c].pos.x-=1;
+        invaders[r][c].pos.x-=1*moveSpeed;
       invaders[r][c].pos.y+=yinc;
 
     }
