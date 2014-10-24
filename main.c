@@ -19,7 +19,7 @@ void drawInvaders(SDL_Renderer *ren,SDL_Texture *tex,Invader invaders[ROWS][COLS
 void moveSpaceShip(SDL_Rect *spaceShip, int moveDir, int moveSpeed);
 void drawSpaceShip(SDL_Renderer *ren, SDL_Texture *sStexture, SDL_Rect spaceShip);
 
-void shootPewPew(SDL_Renderer *ren, SDL_Rect *projectile, SDL_Texture *tex,  int *projectileActive, int moveSpeed);
+void shootPewPew(SDL_Renderer *ren, SDL_Rect *projectile, SDL_Texture *tex,  int *projectileActive, int moveSpeed, int *projectileExplosion);
 
 int main()
 {
@@ -41,7 +41,9 @@ int main()
   projectile.h = 18;
 
   int moveSpeed = 1;
-
+  int projectileExplosion = 0;
+  int projectileActive = 0;
+  int quit=0;
 
   // initialise SDL and check that it worked otherwise exit
   // see here for details http://wiki.libsdl.org/CategoryAPI
@@ -109,8 +111,6 @@ int main()
 
   SDL_FreeSurface(sShip);
 
-  int projectileActive = 0;
-  int quit=0;
   // now we are going to loop forever, process the keys then draw
 
   while (quit !=1)
@@ -178,9 +178,14 @@ int main()
   // Check if projectile has been shot
   if(projectileActive)
   {
-    // Run the stuff to move the projectile
-    shootPewPew(ren, &projectile, tex, &projectileActive, moveSpeed);
+    // If the projectile reaches the top, destroy it
+    if(projectile.y <= 0)
+    {
+      projectileExplosion = 1;
+    }
 
+    // Run the stuff to move the projectile
+    shootPewPew(ren, &projectile, tex, &projectileActive, moveSpeed, &projectileExplosion);
     // Run through the invaders
     for(int r=0; r<ROWS; ++r)
     {
@@ -202,11 +207,6 @@ int main()
       }
     }
 
-    // If the projectile reaches the top, destroy it
-    if(projectile.y <= 0)
-    {
-      projectileExplosion = 1;
-    }
   }
 
   updateInvaders(invaders, moveSpeed);
@@ -270,18 +270,39 @@ void drawSpaceShip(SDL_Renderer *ren, SDL_Texture *sStexture, SDL_Rect spaceShip
   SDL_RenderCopy(ren, sStexture, &sS_sprite, &spaceShip);
 }
 
-void shootPewPew(SDL_Renderer *ren, SDL_Rect *projectile, SDL_Texture *tex, int *projectileActive, int moveSpeed)
+void shootPewPew(SDL_Renderer *ren, SDL_Rect *projectile, SDL_Texture *tex, int *projectileActive, int moveSpeed, int *projectileExplosion)
 {
   SDL_Rect projectileSprite;
-  projectileSprite.x = 468;
-  projectileSprite.y = 379;
-  projectileSprite.w = 27;
-  projectileSprite.h = 50;
 
-  *projectileActive = 1;
-  projectile->y -= 8*moveSpeed;
-  SDL_SetRenderDrawColor(ren, 255, 255, 255, 255);
-  SDL_RenderCopy(ren, tex, &projectileSprite, projectile);
+  SDL_Rect projectileBoom;
+  projectileBoom.x = projectile->x - SPRITEWIDTH/2;
+  projectileBoom.y = projectile->y;
+  projectileBoom.w = SPRITEWIDTH;
+  projectileBoom.h = 20;
+
+  if(!*projectileExplosion)
+  {
+    projectile->y -= 8*moveSpeed;
+    projectileSprite.x = 468;
+    projectileSprite.y = 379;
+    projectileSprite.w = 27;
+    projectileSprite.h = 50;
+    SDL_RenderCopy(ren, tex, &projectileSprite, projectile);
+  }
+  else
+  {
+    *projectileExplosion = 0;
+    *projectileActive = 0;
+    projectileSprite.x = 218;
+    projectileSprite.y = 616;
+    projectileSprite.w = 105;
+    projectileSprite.h = 61;
+    SDL_RenderCopy(ren, tex, &projectileSprite, &projectileBoom);
+
+  }
+
+  //SDL_SetRenderDrawColor(ren, 255, 255, 255, 255);
+
   //SDL_RenderFillRect(ren, projectile);
 }
 
@@ -468,6 +489,7 @@ void updateInvaders(Invader invaders[ROWS][COLS], int moveSpeed)
           invaders[r][c].frame = 0;
         }
       }
+      invaders[r][c].pos.y += yinc;
 
     }
   }
