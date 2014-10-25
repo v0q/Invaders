@@ -1,6 +1,7 @@
 #include <SDL.h>
 #include <SDL_image.h>
 #include <SDL_mixer.h>
+#include <SDL_ttf.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include "Invader.h"
@@ -9,7 +10,8 @@
 #define WIDTH 800
 // the height of the screen taking into account the maze and block
 #define HEIGHT 600
-#define ANIMATIONSTEP 2500
+#define ANIMATIONSEQUENCELENGTH 160
+#define INFOBOXHEIGHT 40
 
 enum DIRECTION{LEFT,RIGHT};
 
@@ -21,14 +23,16 @@ static const char *theme = "Space Invaders Soundtrack.mp3";
 
 // Declaring the functions
 void initializeInvaders(Invader invaders[ROWS][COLS]);
-void updateInvaders(Invader invaders[ROWS][COLS], int moveSpeed);
-void drawInvaders(SDL_Renderer *ren,SDL_Texture *tex,Invader invaders[ROWS][COLS]);
+void updateInvaders(Invader invaders[ROWS][COLS], int moveSpeed, int *currentFrame);
+void drawInvaders(SDL_Renderer *ren,SDL_Texture *tex,Invader invaders[ROWS][COLS], int currentFrame);
 
 void moveSpaceShip(SDL_Rect *spaceShip, int moveDir, int moveSpeed);
 void drawSpaceShip(SDL_Renderer *ren, SDL_Texture *sStexture, SDL_Rect spaceShip);
 
 void shootPewPew(SDL_Renderer *ren, SDL_Rect *projectile, SDL_Texture *tex, int moveSpeed);
 void explodeProjectile(SDL_Renderer *ren, SDL_Rect *projectileBoom, SDL_Texture *tex, int *explodeP);
+
+SDL_Texture* renderText(char thescore, int fontSize, SDL_Renderer *ren);
 
 int main()
 {
@@ -37,6 +41,13 @@ int main()
 
   // Create a variable that records the key presses (continuous)
   const Uint8 *keystate = SDL_GetKeyboardState(NULL);
+
+  // Initializing the "line" that separates the top info box from the play field
+  SDL_Rect infoLine;
+  infoLine.x = 0;
+  infoLine.y = INFOBOXHEIGHT;
+  infoLine.w = WIDTH;
+  infoLine.h = 5;
 
   // Initializing the spaceship "holder" and position
   SDL_Rect spaceShip;
@@ -48,17 +59,30 @@ int main()
   // Initializing projectile
   SDL_Rect projectile;
   projectile.x = 0;
-  projectile.y = spaceShip.y;
+  projectile.y = 0;
   projectile.w = 6;
   projectile.h = 18;
 
+  // Initializing the box for projectile explosion
   SDL_Rect projectileBoom;
-  projectile.y = 0;
+  projectileBoom.y = +infoLine.y+infoLine.h;
 
   int moveSpeed = 1;
   int projectileActive = 0;
   int explodeP = 0;
+  int currentFrame = 0;
   int quit=0;
+
+
+
+  // Initializing the stuff for the infobox
+
+  int score = 0;
+  // Making it possible for the variable to be passed to a string that'll be used for the drawing of the text
+  char thescore[17];
+  memset(thescore, 0, 17);
+  sprintf(thescore, "Score: %i", score);
+
 
   // initialise SDL and check that it worked otherwise exit
   // see here for details http://wiki.libsdl.org/CategoryAPI
@@ -77,6 +101,7 @@ int main()
    printf("Mix_Init: %s\n", Mix_GetError());
    exit(1);
   }
+
 
   Mix_OpenAudio(22050, AUDIO_S16SYS, 2, 640);
   Mix_Music *music = Mix_LoadMUS(theme);
@@ -221,7 +246,7 @@ int main()
   if(projectileActive)
   {
     // Check the projectile reaches the top of the screen and destroy it
-    if(projectile.y <= 0)
+    if(projectile.y <= 0+infoLine.y+infoLine.h)
     {
       // Assign some variables needed for the "explosion" of the projectile
       // As the width of the explosion if different from the projectiles width, we're gonna move the x coordinate of the explosion
@@ -271,9 +296,13 @@ int main()
   }
 
   // Running the stuff that handles invader movement, drawing/rendering and spaceship rendering
-  updateInvaders(invaders, moveSpeed);
-  drawInvaders(ren,tex,invaders);
+  updateInvaders(invaders, moveSpeed, &currentFrame);
+  drawInvaders(ren,tex,invaders, currentFrame);
   drawSpaceShip(ren, sStexture, spaceShip);
+
+  // Draw a line to separate the info bar from the field
+  SDL_SetRenderDrawColor(ren, 255, 255, 255, 255);
+  SDL_RenderFillRect(ren, &infoLine);
 
   // Up until now everything was drawn behind the scenes.
   // This will show the new, red contents of the window.
@@ -287,6 +316,7 @@ int main()
   /// 'cdave' (April 13, 2014). GitHub Gist
   /// Available from: https://gist.github.com/cdave1/10563386 [Accessed 24 October 2014].
 
+  TTF_Quit();
   SDL_Quit();
   return 0;
 }
@@ -389,7 +419,7 @@ void initializeInvaders(Invader invaders[ROWS][COLS])
     for(int c=0; c<COLS; ++c)
     {
       pos.x=xpos+SPRITEWIDTH;
-      pos.y=ypos+SPRITEHEIGHT;
+      pos.y=ypos+SPRITEHEIGHT+INFOBOXHEIGHT;
       xpos+=(GAP+SPRITEWIDTH);
       invaders[r][c].pos=pos;
       invaders[r][c].active=1;
@@ -407,7 +437,7 @@ void initializeInvaders(Invader invaders[ROWS][COLS])
 }
 
 
-void drawInvaders(SDL_Renderer *ren, SDL_Texture *tex, Invader invaders[ROWS][COLS])
+void drawInvaders(SDL_Renderer *ren, SDL_Texture *tex, Invader invaders[ROWS][COLS], int currentFrame)
 {
   SDL_Rect SrcR;
   static int destroySequence = 0;
@@ -432,7 +462,7 @@ void drawInvaders(SDL_Renderer *ren, SDL_Texture *tex, Invader invaders[ROWS][CO
           case TYPE1 :
           {
             SDL_SetRenderDrawColor(ren, 255, 0, 0, 255);
-            SrcR.x=292+(117*invaders[r][c].frame);
+            SrcR.x=292+(117*currentFrame);
             SrcR.y=0;
             SrcR.w=80;
             SrcR.h=80;
@@ -441,7 +471,7 @@ void drawInvaders(SDL_Renderer *ren, SDL_Texture *tex, Invader invaders[ROWS][CO
           case TYPE2 :
           {
             SDL_SetRenderDrawColor(ren, 0, 255, 0, 255);
-            SrcR.x=145*invaders[r][c].frame;
+            SrcR.x=145*currentFrame;
             SrcR.y=0;
             SrcR.w=111;
             SrcR.h=80;
@@ -450,7 +480,7 @@ void drawInvaders(SDL_Renderer *ren, SDL_Texture *tex, Invader invaders[ROWS][CO
           case TYPE3 :
           {
             SDL_SetRenderDrawColor(ren, 0, 0, 255, 255);
-            SrcR.x=140*invaders[r][c].frame;
+            SrcR.x=140*currentFrame;
             SrcR.y=120;
             SrcR.w=120;
             SrcR.h=80;
@@ -476,7 +506,7 @@ void drawInvaders(SDL_Renderer *ren, SDL_Texture *tex, Invader invaders[ROWS][CO
   }
 }
 
-void updateInvaders(Invader invaders[ROWS][COLS], int moveSpeed)
+void updateInvaders(Invader invaders[ROWS][COLS], int moveSpeed, int *currentFrame)
 {
   enum DIR{FWD,BWD};
   static int DIRECTION=FWD;
@@ -551,12 +581,12 @@ void updateInvaders(Invader invaders[ROWS][COLS], int moveSpeed)
         invaders[r][c].pos.x-=1*moveSpeed;
       }
 
-      if(invaders[r][c].pos.x%40 == 0 && invaders[r][c].frame != 3)
+      if(invaders[r][c].pos.x%ANIMATIONSEQUENCELENGTH == 0)
       {
-        invaders[r][c].frame += 1;
-        if(invaders[r][c].frame%2 == 0)
+        ++*currentFrame;
+        if(*currentFrame%2 == 0)
         {
-          invaders[r][c].frame = 0;
+          *currentFrame = 0;
         }
       }
       invaders[r][c].pos.y += yinc;
