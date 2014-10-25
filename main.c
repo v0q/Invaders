@@ -12,6 +12,7 @@
 #define HEIGHT 600
 #define ANIMATIONSEQUENCELENGTH 160
 #define INFOBOXHEIGHT 40
+#define FONTSIZE 12
 
 enum DIRECTION{LEFT,RIGHT};
 
@@ -32,7 +33,7 @@ void drawSpaceShip(SDL_Renderer *ren, SDL_Texture *sStexture, SDL_Rect spaceShip
 void shootPewPew(SDL_Renderer *ren, SDL_Rect *projectile, SDL_Texture *tex, int moveSpeed);
 void explodeProjectile(SDL_Renderer *ren, SDL_Rect *projectileBoom, SDL_Texture *tex, int *explodeP);
 
-SDL_Texture* renderText(char thescore, int fontSize, SDL_Renderer *ren);
+void renderSomeText(TTF_Font *font, SDL_Renderer *ren, char textToRender);
 
 int main()
 {
@@ -82,6 +83,19 @@ int main()
   char thescore[17];
   memset(thescore, 0, 17);
   sprintf(thescore, "Score: %i", score);
+  TTF_Font* font = TTF_OpenFont("./fonts/space_invades.ttf", FONTSIZE);
+
+  if(font == NULL)
+  {
+    printf("BOOM FAILED %s\n", TTF_GetError());
+  }
+
+  // Initialize TTF
+  if(TTF_Init() == -1)
+  {
+    printf("%s\n", TTF_GetError());
+    return EXIT_FAILURE;
+  }
 
 
   // initialise SDL and check that it worked otherwise exit
@@ -99,7 +113,7 @@ int main()
   if (flags != (result = Mix_Init(flags))) {
    printf("Could not initialize mixer (result: %d).\n", result);
    printf("Mix_Init: %s\n", Mix_GetError());
-   exit(1);
+   return EXIT_FAILURE;
   }
 
 
@@ -233,6 +247,8 @@ int main()
           }
           break;
         }
+
+        case SDLK_RETURN : renderSomeText(font, ren, *thescore); break;
 
        }
     }
@@ -593,4 +609,18 @@ void updateInvaders(Invader invaders[ROWS][COLS], int moveSpeed, int *currentFra
 
     }
   }
+}
+
+void renderSomeText(TTF_Font *font, SDL_Renderer *ren, char textToRender)
+{
+//  SDL_Rect textHolder;
+  SDL_Texture *textTexture;
+  SDL_Color fontColor = {255, 255, 255, 255};
+
+
+  SDL_Surface *text = TTF_RenderText_Solid(font, &textToRender, fontColor);
+  textTexture = SDL_CreateTextureFromSurface(ren, text);
+
+  //SDL_QueryTexture(textTexture, NULL, NULL, &textHolder.w, &textHolder.h);
+
 }
