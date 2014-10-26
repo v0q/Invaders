@@ -24,22 +24,35 @@ enum DIRECTION{LEFT,RIGHT};
 
 // Declaring the functions
 void initializeInvaders(Invader invaders[ROWS][COLS]);
-void updateInvaders(Invader invaders[ROWS][COLS], int moveSpeed, int *currentFrame);
+void updateInvaders(Invader invaders[ROWS][COLS], int *gameSpeed, int *currentFrame);
 void drawInvaders(SDL_Renderer *ren,SDL_Texture *tex,Invader invaders[ROWS][COLS], int currentFrame);
 
-void moveSpaceShip(SDL_Rect *spaceShip, int moveDir, int moveSpeed);
+void moveSpaceShip(SDL_Rect *spaceShip, int moveDir);
 void drawSpaceShip(SDL_Renderer *ren, SDL_Texture *sStexture, SDL_Rect spaceShip);
+void wooAlien(SDL_Renderer *ren, SDL_Rect alien_sprite, SDL_Texture *tex, Invader *alien, int direction);
 
-void shootPewPew(SDL_Renderer *ren, SDL_Rect *projectile, SDL_Texture *tex, int moveSpeed);
+void shootPewPew(SDL_Renderer *ren, SDL_Rect *projectile, SDL_Texture *tex);
 void explodeProjectile(SDL_Renderer *ren, SDL_Rect *projectileBoom, SDL_Texture *tex, int *explodeP);
 
 void renderSomeText(TTF_Font *font, SDL_Renderer *ren, char textToRender[17], SDL_Rect *textHolder);
 void updateScore(int *score, int alienType, char thescore[17]);
+void playSound(char *soundFile, int chanToPlay, int loops);
+void playMusic();
+
 
 int main()
 {
   Invader invaders[ROWS][COLS];
   initializeInvaders(invaders);
+
+  Invader alien;
+  alien.active = 0;
+  alien.frame = 0;
+  alien.type = 0;
+  alien.pos.x=-SPRITEWIDTH;
+  alien.pos.y=INFOBOXHEIGHT+1;
+  alien.pos.w=SPRITEWIDTH+(SPRITEWIDTH/2);
+  alien.pos.h=SPRITEHEIGHT;
 
   // Create a variable that records the key presses (continuous)
   const Uint8 *keystate = SDL_GetKeyboardState(NULL);
@@ -58,6 +71,12 @@ int main()
   spaceShip.w = SPRITEWIDTH;
   spaceShip.h = 20;
 
+  SDL_Rect alien_sprite;
+  alien_sprite.x = 0;
+  alien_sprite.y = 616;
+  alien_sprite.w = 125;
+  alien_sprite.h = 61;
+
   // Initializing projectile
   SDL_Rect projectile;
   projectile.x = 0;
@@ -69,8 +88,9 @@ int main()
   SDL_Rect projectileBoom;
   projectileBoom.y = +infoLine.y+infoLine.h;
 
-  int moveSpeed = 1;
+  int gameSpeed = 1;
   int projectileActive = 0;
+  int direction = 0;
   int explodeP = 0;
   int currentFrame = 0;
   int quit=0;
@@ -81,7 +101,7 @@ int main()
 
   SDL_Rect scoreHolder;
   scoreHolder.x = 0;
-  scoreHolder.y = 0;
+  scoreHolder.y = INFOBOXHEIGHT/2 - FONTSIZE/2;
   scoreHolder.w = 0;
   scoreHolder.h = 0;
 
@@ -89,7 +109,7 @@ int main()
   // Making it possible for the variable to be passed to a string that'll be used for the drawing of the text
   char thescore[17];
   memset(thescore, 0, 17);
-  sprintf(thescore, "Score: %i", score);
+  sprintf(thescore, "Score: %04i", score);
 
   // Initialize TTF
   if(TTF_Init() == -1)
@@ -114,22 +134,23 @@ int main()
     return EXIT_FAILURE;
   }
 
- /* // Music stuff
-  int result = 0;
-  int flags = MIX_INIT_MP3;
+  // Music stuff
+  int audio_rate = 22050;
+  Uint16 audio_format = AUDIO_S16SYS;
+  int audio_channels = 2;
+  int audio_buffers = 4096;
 
-  if (flags != (result = Mix_Init(flags))) {
-   printf("Could not initialize mixer (result: %d).\n", result);
-   printf("Mix_Init: %s\n", Mix_GetError());
-   return EXIT_FAILURE;
+  if(Mix_OpenAudio(audio_rate, audio_format, audio_channels, audio_buffers) != 0) {
+      fprintf(stderr, "Unable to initialize audio: %s\n", Mix_GetError());
+      exit(1);
   }
 
+/*  int channel;
 
-  Mix_OpenAudio(22050, AUDIO_S16SYS, 2, 640);
-  Mix_Music *music = Mix_LoadMUS(theme);
-  Mix_PlayMusic(music, 1);
-  /// 'cdave' (April 13, 2014). GitHub Gist
-  /// Available from: https://gist.github.com/cdave1/10563386 [Accessed 24 October 2014].
+  channel = Mix_PlayChannel(-1, soundBassLo, -1);
+  if(channel == -1) {
+      fprintf(stderr, "Unable to play WAV file: %s\n", Mix_GetError());
+  }
 */
   // we are now going to create an SDL window
   SDL_Window *win = 0;
@@ -195,11 +216,11 @@ int main()
     // Using the SDL_GetKeyboardState instead so the movement doesn't stop when pressing another key.
     if(keystate[SDL_SCANCODE_LEFT] || keystate[SDL_SCANCODE_A])
     {
-      moveSpaceShip(&spaceShip, LEFT, moveSpeed);
+      moveSpaceShip(&spaceShip, LEFT);
     }
     if(keystate[SDL_SCANCODE_RIGHT] || keystate[SDL_SCANCODE_D])
     {
-      moveSpaceShip(&spaceShip, RIGHT, moveSpeed);
+      moveSpaceShip(&spaceShip, RIGHT);
     }
 
     SDL_Event event;
@@ -232,26 +253,7 @@ int main()
             // Now that the projectile is about to shoot, change the projectileActive to true to prevent more projectiles to be shot
             // at the same time
             projectileActive = 1;
-          }
-          break;
-        }
-
-        // A little bit of extra, adding an option where you can increase or decrease game speed with NUMPAD + and -
-        case SDLK_KP_PLUS :
-        {
-          // Restricting the max movement speed increase to *9
-          if(moveSpeed < 9)
-          {
-            moveSpeed += 2;
-          }
-          break;
-        }
-        case SDLK_KP_MINUS :
-        {
-          // Restricting the min movement speed to normal speed
-          if(moveSpeed > 1)
-          {
-            moveSpeed -= 2;
+            playSound("shoot", 3, 0);
           }
           break;
         }
@@ -283,7 +285,7 @@ int main()
     }
 
     // Pass the stuff needed to display and move the projectile to the function
-    shootPewPew(ren, &projectile, tex, moveSpeed);
+    shootPewPew(ren, &projectile, tex);
 
     // Check if the projectile collides with an invader by running through all the invaders with for loops
     // and checking if the coordinates of the projectile hit an invader.
@@ -306,9 +308,26 @@ int main()
           invaders[r][c].frame = 3;
           projectileActive = 0;
           updateScore(&score, invaders[r][c].type, thescore);
+          playSound("invaderkilled", 2, 0);
         }
 
       }
+    }
+
+    // Check if the projectile collides with the alien
+    if(alien.pos.x   <=  projectile.x               &&
+       projectile.x  <=  alien.pos.x+alien.pos.w    &&
+       alien.pos.y   <=  projectile.y               &&
+       projectile.y  <=  alien.pos.y+alien.pos.h    &&
+       alien.active)
+    {
+      // If the projectile hits a target, destroy the projectile and change the frame of that specific invader
+      // to 3 which equals to the explosion "animation", the actual destroyal of the object happens later when the explosion is complete.
+      alien.active = 0;
+      Mix_Pause(4);
+      projectileActive = 0;
+      updateScore(&score, 9, thescore);
+      playSound("invaderkilled", 2, 0);
     }
 
   }
@@ -321,9 +340,30 @@ int main()
   }
 
   // Running the stuff that handles invader movement, drawing/rendering and spaceship rendering
-  updateInvaders(invaders, moveSpeed, &currentFrame);
+  updateInvaders(invaders, &gameSpeed, &currentFrame);
   drawInvaders(ren,tex,invaders, currentFrame);
   drawSpaceShip(ren, sStexture, spaceShip);
+
+  if(rand()%1013 == 0 && !alien.active)
+  {
+    alien.active = 1;
+    if(rand()%3 == 0)
+    {
+        alien.pos.x = -SPRITEWIDTH;
+        direction = 0;
+    }
+    else
+    {
+        alien.pos.x = WIDTH + SPRITEWIDTH;
+        direction = 1;
+    }
+    //printf("Random occurance\n");
+  }
+
+  if(alien.active)
+  {
+    wooAlien(ren, alien_sprite, tex, &alien, direction);
+  }
 
   // Draw a line to separate the info bar from the field
   SDL_SetRenderDrawColor(ren, 255, 255, 255, 255);
@@ -332,6 +372,8 @@ int main()
   //printf("%s\n", thescore);
   renderSomeText(font, ren, thescore, &scoreHolder);
 
+  playMusic(gameSpeed);
+
   // Up until now everything was drawn behind the scenes.
   // This will show the new, red contents of the window.
 
@@ -339,17 +381,19 @@ int main()
 
   }
 
+
   // Music stuff
  // Mix_FreeMusic(music);
   /// 'cdave' (April 13, 2014). GitHub Gist
   /// Available from: https://gist.github.com/cdave1/10563386 [Accessed 24 October 2014].
 
+  Mix_CloseAudio();
   TTF_Quit();
   SDL_Quit();
   return 0;
 }
 
-void moveSpaceShip(SDL_Rect *spaceShip, int moveDir, int moveSpeed)
+void moveSpaceShip(SDL_Rect *spaceShip, int moveDir)
 {
   // Movement stuff
   switch(moveDir)
@@ -359,7 +403,7 @@ void moveSpaceShip(SDL_Rect *spaceShip, int moveDir, int moveSpeed)
       // "Boundary collision left"
       if(spaceShip->x > 0+SPRITEWIDTH)
       {
-        spaceShip->x -= 5*moveSpeed;
+        spaceShip->x -= 5;
       }
       else
       {
@@ -372,7 +416,7 @@ void moveSpaceShip(SDL_Rect *spaceShip, int moveDir, int moveSpeed)
       // "Boundary collision right"
       if(spaceShip->x < WIDTH-2*(SPRITEWIDTH))
       {
-        spaceShip->x += 5*moveSpeed;
+        spaceShip->x += 5;
       }
       else
       {
@@ -395,7 +439,7 @@ void drawSpaceShip(SDL_Renderer *ren, SDL_Texture *sStexture, SDL_Rect spaceShip
   SDL_RenderCopy(ren, sStexture, &sS_sprite, &spaceShip);
 }
 
-void shootPewPew(SDL_Renderer *ren, SDL_Rect *projectile, SDL_Texture *tex, int moveSpeed)
+void shootPewPew(SDL_Renderer *ren, SDL_Rect *projectile, SDL_Texture *tex)
 {
   SDL_Rect projectileSprite;
   projectileSprite.x = 468;
@@ -403,7 +447,7 @@ void shootPewPew(SDL_Renderer *ren, SDL_Rect *projectile, SDL_Texture *tex, int 
   projectileSprite.w = 27;
   projectileSprite.h = 50;
 
-  projectile->y -= 8*moveSpeed;
+  projectile->y -= 8;
 
   SDL_RenderCopy(ren, tex, &projectileSprite, projectile);
 
@@ -453,11 +497,11 @@ void initializeInvaders(Invader invaders[ROWS][COLS])
       invaders[r][c].active=1;
       invaders[r][c].frame=0;
       if(r==0)
-        invaders[r][c].type=TYPE1;
+        invaders[r][c].type=TYPE3;
       else if(r==1 || r==2)
         invaders[r][c].type=TYPE2;
       else
-        invaders[r][c].type=TYPE3;
+        invaders[r][c].type=TYPE1;
 
     }
     ypos+=(GAP+SPRITEHEIGHT);
@@ -487,7 +531,7 @@ void drawInvaders(SDL_Renderer *ren, SDL_Texture *tex, Invader invaders[ROWS][CO
 
         switch(invaders[r][c].type)
         {
-          case TYPE1 :
+          case TYPE3 :
           {
             SDL_SetRenderDrawColor(ren, 255, 0, 0, 255);
             SrcR.x=292+(117*currentFrame);
@@ -505,7 +549,7 @@ void drawInvaders(SDL_Renderer *ren, SDL_Texture *tex, Invader invaders[ROWS][CO
             SrcR.h=80;
             break;
           }
-          case TYPE3 :
+          case TYPE1 :
           {
             SDL_SetRenderDrawColor(ren, 0, 0, 255, 255);
             SrcR.x=140*currentFrame;
@@ -534,7 +578,7 @@ void drawInvaders(SDL_Renderer *ren, SDL_Texture *tex, Invader invaders[ROWS][CO
   }
 }
 
-void updateInvaders(Invader invaders[ROWS][COLS], int moveSpeed, int *currentFrame)
+void updateInvaders(Invader invaders[ROWS][COLS], int *gameSpeed, int *currentFrame)
 {
   enum DIR{FWD,BWD};
   static int DIRECTION=FWD;
@@ -542,6 +586,7 @@ void updateInvaders(Invader invaders[ROWS][COLS], int moveSpeed, int *currentFra
   static int actColR = COLS-1;
   static int actColL = 0;
   int stopLoop = 0;
+  static int updateSpeed = 1;
 
   // Loop through the column from right to find the active outermost column on right
   for(int c = COLS-1; c >= 0; --c)
@@ -583,17 +628,21 @@ void updateInvaders(Invader invaders[ROWS][COLS], int moveSpeed, int *currentFra
       }
   }
 
-  if(invaders[0][actColR].pos.x>=WIDTH-(SPRITEWIDTH*2))
+  if(invaders[0][actColR].pos.x>=WIDTH-(SPRITEWIDTH*2-SPRITEWIDTH/2))
   {
     DIRECTION=BWD;
-    yinc=GAP;
+    yinc=GAP/2;
   }
 
-  else if(invaders[0][actColL].pos.x<=SPRITEWIDTH)
+  else if(invaders[0][actColL].pos.x<=SPRITEWIDTH/2)
   {
     DIRECTION=FWD;
-    yinc=GAP;
-
+    yinc=GAP/2;
+    if(updateSpeed%2 == 0 && *gameSpeed < 10)
+    {
+        ++*gameSpeed;
+    }
+    ++updateSpeed;
   }
 
   for(int r=0; r<ROWS; ++r)
@@ -602,20 +651,22 @@ void updateInvaders(Invader invaders[ROWS][COLS], int moveSpeed, int *currentFra
     {
       if(DIRECTION==FWD)
       {
-        invaders[r][c].pos.x+=1*moveSpeed;
+        invaders[r][c].pos.x+=1+*gameSpeed;
       }
       else
       {
-        invaders[r][c].pos.x-=1*moveSpeed;
+        invaders[r][c].pos.x-=1+*gameSpeed;
       }
 
       if(invaders[r][c].pos.x%ANIMATIONSEQUENCELENGTH == 0)
       {
         ++*currentFrame;
+
         if(*currentFrame%2 == 0)
         {
           *currentFrame = 0;
         }
+
       }
       invaders[r][c].pos.y += yinc;
 
@@ -638,6 +689,102 @@ void renderSomeText(TTF_Font *font, SDL_Renderer *ren, char textToRender[17], SD
 
 void updateScore(int *score, int alienType, char thescore[17])
 {
-    *score += 100*(alienType+1);
-    sprintf(thescore, "Score: %i", *score);
+    *score += 10*(alienType+1);
+    sprintf(thescore, "Score: %04i", *score);
+}
+
+void playSound(char *soundFile, int chanToPlay, int loops)
+{
+    // Initialize the stuff for playing sound
+    char file[50];
+    memset(file, 0, 50);
+    Mix_Chunk *sound = NULL;
+    sprintf(file, "sounds/%s.wav", soundFile);
+
+    if(chanToPlay == 0)
+    {
+        chanToPlay = -1;
+    }
+
+    // Loading the WAV file and checking for errors
+    sound = Mix_LoadWAV(file);
+    if(sound == NULL) {
+        fprintf(stderr, "Unable to load WAV file: %s\n", Mix_GetError());
+    }
+
+    // Intializing the channel, sound and play the sound once, check for errors
+    int channel;
+    channel = Mix_PlayChannel(chanToPlay, sound, loops);
+    if(channel == -1) {
+        fprintf(stderr, "Unable to play WAV file: %s\n", Mix_GetError());
+    }
+
+}
+
+void wooAlien(SDL_Renderer *ren, SDL_Rect alien_sprite, SDL_Texture *tex, Invader *alien, int direction)
+{
+    if(direction == 0)
+        alien->pos.x += 3;
+    else
+        alien->pos.x -= 3;
+
+    playSound("ufo_lowpitch", 4, -1);
+    //printf("%d\n", alien->pos.x);
+
+    if(alien->pos.x < -SPRITEWIDTH || alien->pos.x > WIDTH+SPRITEWIDTH)
+    {
+        alien->active = 0;
+        Mix_Pause(4);
+    }
+
+    SDL_RenderCopy(ren, tex, &alien_sprite, &alien->pos);
+}
+
+void playMusic(int gameSpeed)
+{
+    static int currentSound = 4;
+    char musicFile[24];
+    static int musicFrame = 0;
+    int musicSpeed;
+
+    memset(musicFile, 0, 24);
+
+    switch(gameSpeed)
+    {
+        case 1: musicSpeed = 50; break;
+        case 2: musicSpeed = 45; break;
+        case 3: musicSpeed = 40; break;
+        case 4: musicSpeed = 35; break;
+        case 5: musicSpeed = 30; break;
+        case 6: musicSpeed = 25; break;
+        case 7: musicSpeed = 20; break;
+        case 8: musicSpeed = 15; break;
+        case 9: musicSpeed = 10; break;
+        case 10: musicSpeed = 5; break;
+        default: musicSpeed = 5; break;
+    }
+
+    if(Mix_Playing(1) == 0)
+    {
+        ++musicFrame;
+
+        if(musicFrame%musicSpeed == 0)
+        {
+            sprintf(musicFile, "fastinvader%i", currentSound);
+
+            if(currentSound < 4)
+            {
+                ++currentSound;
+            }
+            else
+            {
+                currentSound = 1;
+            }
+
+            playSound(musicFile, 1, 0);
+        }
+    }
+
+
+
 }
