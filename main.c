@@ -344,7 +344,7 @@ int main()
   drawInvaders(ren,tex,invaders, currentFrame);
   drawSpaceShip(ren, sStexture, spaceShip);
 
-  if(rand()%1013 == 0 && !alien.active)
+  if(rand()%1000 == 0 && !alien.active)
   {
     alien.active = 1;
     if(rand()%3 == 0)
