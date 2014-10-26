@@ -16,12 +16,6 @@
 
 enum DIRECTION{LEFT,RIGHT};
 
-// Put the sound file to a variable
-// static const char *theme = "Space Invaders Soundtrack.mp3";
-/// http://www.youtube.com/watch?v=fyTeZn2b46U
-/// 'cdave' (April 13, 2014). GitHub Gist
-/// Available from: https://gist.github.com/cdave1/10563386 [Accessed 24 October 2014].
-
 // Declaring the functions
 void initializeInvaders(Invader invaders[ROWS][COLS]);
 void updateInvaders(Invader invaders[ROWS][COLS], int *gameSpeed, int *currentFrame);
@@ -34,10 +28,10 @@ void wooAlien(SDL_Renderer *ren, SDL_Rect alien_sprite, SDL_Texture *tex, Invade
 void shootPewPew(SDL_Renderer *ren, SDL_Rect *projectile, SDL_Texture *tex);
 void explodeProjectile(SDL_Renderer *ren, SDL_Rect *projectileBoom, SDL_Texture *tex, int *explodeP);
 
-void renderSomeText(TTF_Font *font, SDL_Renderer *ren, char textToRender[17], SDL_Rect *textHolder);
-void updateScore(int *score, int alienType, char thescore[17]);
 void playSound(Mix_Chunk *sound, int chanToPlay, int loops);
 void playMusic();
+
+SDL_Texture *updateScoreTex(TTF_Font *font, SDL_Renderer *ren, int *score, int alienType);
 
 
 int main()
@@ -100,7 +94,7 @@ int main()
   // Initializing the stuff for the infobox
 
   SDL_Rect scoreHolder;
-  scoreHolder.x = 0;
+  scoreHolder.x = 5;
   scoreHolder.y = INFOBOXHEIGHT/2 - FONTSIZE/2;
   scoreHolder.w = 0;
   scoreHolder.h = 0;
@@ -124,7 +118,6 @@ int main()
   {
     printf("BOOM FAILED %s\n", TTF_GetError());
   }
-
 
   // initialise SDL and check that it worked otherwise exit
   // see here for details http://wiki.libsdl.org/CategoryAPI
@@ -230,6 +223,16 @@ int main()
 
   SDL_FreeSurface(sShip);
 
+  // Initialize the score stuff
+  SDL_Texture *textTexture;
+  SDL_Color fontColor = {255, 255, 255, 255};
+
+  SDL_Surface *text = TTF_RenderText_Solid(font, thescore, fontColor);
+
+  textTexture = SDL_CreateTextureFromSurface(ren, text);
+  SDL_FreeSurface(text);
+  SDL_QueryTexture(textTexture, NULL, NULL, &scoreHolder.w, &scoreHolder.h);
+
   // now we are going to loop forever, process the keys then draw
 
   while (quit !=1)
@@ -281,8 +284,6 @@ int main()
           break;
         }
 
-        case SDLK_RETURN : updateScore(&score, 1, thescore); break;
-
        }
     }
   }
@@ -330,7 +331,7 @@ int main()
           // to 3 which equals to the explosion "animation", the actual destroyal of the object happens later when the explosion is complete.
           invaders[r][c].frame = 3;
           projectileActive = 0;
-          updateScore(&score, invaders[r][c].type, thescore);
+          textTexture = updateScoreTex(font, ren, &score, invaders[r][c].type);
           playSound(invaderkilled, 2, 0);
         }
 
@@ -349,7 +350,7 @@ int main()
       alien.active = 0;
       Mix_Pause(4);
       projectileActive = 0;
-      updateScore(&score, 9, thescore);
+      textTexture = updateScoreTex(font, ren, &score, 9);
       playSound(invaderkilled, 2, 0);
     }
 
@@ -392,9 +393,10 @@ int main()
   SDL_SetRenderDrawColor(ren, 255, 255, 255, 255);
   SDL_RenderFillRect(ren, &infoLine);
 
-  //printf("%s\n", thescore);
-  renderSomeText(font, ren, thescore, &scoreHolder);
+  // Render the score
+  SDL_RenderCopy(ren, textTexture, NULL, &scoreHolder);
 
+  // Loop and run the background music based on the current gamespeed
   playMusic(gameSpeed, music);
 
   // Up until now everything was drawn behind the scenes.
@@ -403,12 +405,6 @@ int main()
   SDL_RenderPresent(ren);
 
   }
-
-
-  // Music stuff
- // Mix_FreeMusic(music);
-  /// 'cdave' (April 13, 2014). GitHub Gist
-  /// Available from: https://gist.github.com/cdave1/10563386 [Accessed 24 October 2014].
 
   Mix_FreeChunk(music[0]);
   Mix_FreeChunk(music[1]);
@@ -704,6 +700,7 @@ void updateInvaders(Invader invaders[ROWS][COLS], int *gameSpeed, int *currentFr
   }
 }
 
+/* DEPRECATED
 void renderSomeText(TTF_Font *font, SDL_Renderer *ren, char textToRender[17], SDL_Rect *textHolder)
 {
   SDL_Texture *textTexture;
@@ -711,16 +708,32 @@ void renderSomeText(TTF_Font *font, SDL_Renderer *ren, char textToRender[17], SD
 
   SDL_Surface *text = TTF_RenderText_Solid(font, textToRender, fontColor);
   textTexture = SDL_CreateTextureFromSurface(ren, text);
-
   SDL_QueryTexture(textTexture, NULL, NULL, &textHolder->w, &textHolder->h);
 
   SDL_RenderCopy(ren, textTexture, NULL, textHolder);
+  SDL_FreeSurface(text);
+  SDL_DestroyTexture(textTexture);
 }
 
 void updateScore(int *score, int alienType, char thescore[17])
 {
     *score += 10*(alienType+1);
     sprintf(thescore, "Score: %04i", *score);
+}*/
+
+SDL_Texture *updateScoreTex(TTF_Font *font, SDL_Renderer *ren, int *score, int alienType)
+{
+    char thescore[17];
+    memset(thescore, 0, 17);
+    *score += 10*(alienType+1);
+    sprintf(thescore, "Score: %04i", *score);
+
+    SDL_Color fontColor = {255, 255, 255, 255};
+
+    SDL_Surface *text = TTF_RenderText_Solid(font, thescore, fontColor);
+
+    return SDL_CreateTextureFromSurface(ren, text);
+    SDL_FreeSurface(text);
 }
 
 void playSound(Mix_Chunk *sound, int chanToPlay, int loops)
@@ -782,7 +795,14 @@ void playMusic(int gameSpeed, Mix_Chunk *music[4])
 
     if(Mix_Playing(1) == 0)
     {
-        ++musicFrame;
+        if(musicFrame < musicSpeed)
+        {
+         ++musicFrame;
+        }
+        else
+        {
+            musicFrame = 1;
+        }
 
         if(musicFrame%musicSpeed == 0)
         {
@@ -799,7 +819,5 @@ void playMusic(int gameSpeed, Mix_Chunk *music[4])
 
         }
     }
-
-
 
 }
