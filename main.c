@@ -761,8 +761,8 @@ void wooAlien(SDL_Renderer *ren, SDL_Rect alien_sprite, SDL_Texture *tex, Invade
 
 void playMusic(int gameSpeed, Mix_Chunk *music[4])
 {
-    static int currentSound = 0;
-    static int musicFrame = 0;
+    static int currentSound = 3;
+    static int musicFrame = 25;
     int musicSpeed;
 
     switch(gameSpeed)
@@ -787,6 +787,7 @@ void playMusic(int gameSpeed, Mix_Chunk *music[4])
         if(musicFrame%musicSpeed == 0)
         {
 
+            playSound(music[currentSound], 1, 0);
             if(currentSound < 3)
             {
                 ++currentSound;
@@ -796,7 +797,6 @@ void playMusic(int gameSpeed, Mix_Chunk *music[4])
                 currentSound = 0;
             }
 
-            playSound(music[currentSound], 1, 0);
         }
     }
 
