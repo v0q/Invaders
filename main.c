@@ -12,12 +12,12 @@
 #define HEIGHT 600
 #define ANIMATIONSEQUENCELENGTH 160
 #define INFOBOXHEIGHT 40
-#define FONTSIZE 12
+#define FONTSIZE 16
 
 enum DIRECTION{LEFT,RIGHT};
 
 // Put the sound file to a variable
-static const char *theme = "Space Invaders Soundtrack.mp3";
+// static const char *theme = "Space Invaders Soundtrack.mp3";
 /// http://www.youtube.com/watch?v=fyTeZn2b46U
 /// 'cdave' (April 13, 2014). GitHub Gist
 /// Available from: https://gist.github.com/cdave1/10563386 [Accessed 24 October 2014].
@@ -33,7 +33,8 @@ void drawSpaceShip(SDL_Renderer *ren, SDL_Texture *sStexture, SDL_Rect spaceShip
 void shootPewPew(SDL_Renderer *ren, SDL_Rect *projectile, SDL_Texture *tex, int moveSpeed);
 void explodeProjectile(SDL_Renderer *ren, SDL_Rect *projectileBoom, SDL_Texture *tex, int *explodeP);
 
-void renderSomeText(TTF_Font *font, SDL_Renderer *ren, char textToRender);
+void renderSomeText(TTF_Font *font, SDL_Renderer *ren, char textToRender[17], SDL_Rect *textHolder);
+void updateScore(int *score, int alienType, char thescore[17]);
 
 int main()
 {
@@ -78,23 +79,30 @@ int main()
 
   // Initializing the stuff for the infobox
 
+  SDL_Rect scoreHolder;
+  scoreHolder.x = 0;
+  scoreHolder.y = 0;
+  scoreHolder.w = 0;
+  scoreHolder.h = 0;
+
   int score = 0;
   // Making it possible for the variable to be passed to a string that'll be used for the drawing of the text
   char thescore[17];
   memset(thescore, 0, 17);
   sprintf(thescore, "Score: %i", score);
-  TTF_Font* font = TTF_OpenFont("./fonts/space_invades.ttf", FONTSIZE);
-
-  if(font == NULL)
-  {
-    printf("BOOM FAILED %s\n", TTF_GetError());
-  }
 
   // Initialize TTF
   if(TTF_Init() == -1)
   {
     printf("%s\n", TTF_GetError());
     return EXIT_FAILURE;
+  }
+
+  TTF_Font* font = TTF_OpenFont("fonts/space_invaders.ttf", FONTSIZE);
+
+  if(font == NULL)
+  {
+    printf("BOOM FAILED %s\n", TTF_GetError());
   }
 
 
@@ -106,7 +114,7 @@ int main()
     return EXIT_FAILURE;
   }
 
-  // Music stuff
+ /* // Music stuff
   int result = 0;
   int flags = MIX_INIT_MP3;
 
@@ -122,7 +130,7 @@ int main()
   Mix_PlayMusic(music, 1);
   /// 'cdave' (April 13, 2014). GitHub Gist
   /// Available from: https://gist.github.com/cdave1/10563386 [Accessed 24 October 2014].
-
+*/
   // we are now going to create an SDL window
   SDL_Window *win = 0;
   win = SDL_CreateWindow("Invaders", 100, 100, WIDTH, HEIGHT, SDL_WINDOW_SHOWN);
@@ -248,7 +256,7 @@ int main()
           break;
         }
 
-        case SDLK_RETURN : renderSomeText(font, ren, *thescore); break;
+        case SDLK_RETURN : updateScore(&score, 1, thescore); break;
 
        }
     }
@@ -297,6 +305,7 @@ int main()
           // to 3 which equals to the explosion "animation", the actual destroyal of the object happens later when the explosion is complete.
           invaders[r][c].frame = 3;
           projectileActive = 0;
+          updateScore(&score, invaders[r][c].type, thescore);
         }
 
       }
@@ -320,6 +329,9 @@ int main()
   SDL_SetRenderDrawColor(ren, 255, 255, 255, 255);
   SDL_RenderFillRect(ren, &infoLine);
 
+  //printf("%s\n", thescore);
+  renderSomeText(font, ren, thescore, &scoreHolder);
+
   // Up until now everything was drawn behind the scenes.
   // This will show the new, red contents of the window.
 
@@ -328,7 +340,7 @@ int main()
   }
 
   // Music stuff
-  Mix_FreeMusic(music);
+ // Mix_FreeMusic(music);
   /// 'cdave' (April 13, 2014). GitHub Gist
   /// Available from: https://gist.github.com/cdave1/10563386 [Accessed 24 October 2014].
 
@@ -611,16 +623,21 @@ void updateInvaders(Invader invaders[ROWS][COLS], int moveSpeed, int *currentFra
   }
 }
 
-void renderSomeText(TTF_Font *font, SDL_Renderer *ren, char textToRender)
+void renderSomeText(TTF_Font *font, SDL_Renderer *ren, char textToRender[17], SDL_Rect *textHolder)
 {
-//  SDL_Rect textHolder;
   SDL_Texture *textTexture;
   SDL_Color fontColor = {255, 255, 255, 255};
 
-
-  SDL_Surface *text = TTF_RenderText_Solid(font, &textToRender, fontColor);
+  SDL_Surface *text = TTF_RenderText_Solid(font, textToRender, fontColor);
   textTexture = SDL_CreateTextureFromSurface(ren, text);
 
-  //SDL_QueryTexture(textTexture, NULL, NULL, &textHolder.w, &textHolder.h);
+  SDL_QueryTexture(textTexture, NULL, NULL, &textHolder->w, &textHolder->h);
 
+  SDL_RenderCopy(ren, textTexture, NULL, textHolder);
+}
+
+void updateScore(int *score, int alienType, char thescore[17])
+{
+    *score += 100*(alienType+1);
+    sprintf(thescore, "Score: %i", *score);
 }
