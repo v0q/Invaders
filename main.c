@@ -29,14 +29,14 @@ void drawInvaders(SDL_Renderer *ren,SDL_Texture *tex,Invader invaders[ROWS][COLS
 
 void moveSpaceShip(SDL_Rect *spaceShip, int moveDir);
 void drawSpaceShip(SDL_Renderer *ren, SDL_Texture *sStexture, SDL_Rect spaceShip);
-void wooAlien(SDL_Renderer *ren, SDL_Rect alien_sprite, SDL_Texture *tex, Invader *alien, int direction);
+void wooAlien(SDL_Renderer *ren, SDL_Rect alien_sprite, SDL_Texture *tex, Invader *alien, int direction, Mix_Chunk *ufosound);
 
 void shootPewPew(SDL_Renderer *ren, SDL_Rect *projectile, SDL_Texture *tex);
 void explodeProjectile(SDL_Renderer *ren, SDL_Rect *projectileBoom, SDL_Texture *tex, int *explodeP);
 
 void renderSomeText(TTF_Font *font, SDL_Renderer *ren, char textToRender[17], SDL_Rect *textHolder);
 void updateScore(int *score, int alienType, char thescore[17]);
-void playSound(char *soundFile, int chanToPlay, int loops);
+void playSound(Mix_Chunk *sound, int chanToPlay, int loops);
 void playMusic();
 
 
@@ -88,13 +88,13 @@ int main()
   SDL_Rect projectileBoom;
   projectileBoom.y = +infoLine.y+infoLine.h;
 
+  // Some variables used all around
   int gameSpeed = 1;
   int projectileActive = 0;
   int direction = 0;
   int explodeP = 0;
   int currentFrame = 0;
   int quit=0;
-
 
 
   // Initializing the stuff for the infobox
@@ -143,6 +143,29 @@ int main()
   if(Mix_OpenAudio(audio_rate, audio_format, audio_channels, audio_buffers) != 0) {
       fprintf(stderr, "Unable to initialize audio: %s\n", Mix_GetError());
       exit(1);
+  }
+
+  Mix_Chunk *music[4];
+  Mix_Chunk *shoot = NULL;
+  Mix_Chunk *invaderkilled = NULL;
+  Mix_Chunk *ufo_lowpitch = NULL;
+
+  music[0] = Mix_LoadWAV("sounds/fastinvader1.wav");
+  music[1] = Mix_LoadWAV("sounds/fastinvader2.wav");
+  music[2] = Mix_LoadWAV("sounds/fastinvader3.wav");
+  music[3] = Mix_LoadWAV("sounds/fastinvader4.wav");
+  shoot = Mix_LoadWAV("sounds/shoot.wav");
+  invaderkilled = Mix_LoadWAV("sounds/invaderkilled.wav");
+  ufo_lowpitch = Mix_LoadWAV("sounds/ufo_lowpitch.wav");
+
+  if((music[0] == NULL) ||
+     (music[1] == NULL) ||
+     (music[2] == NULL) ||
+     (music[3] == NULL) ||
+     (shoot == NULL) ||
+     (invaderkilled == NULL) ||
+     (ufo_lowpitch == NULL)) {
+      fprintf(stderr, "Unable to load WAV file: %s\n", Mix_GetError());
   }
 
 /*  int channel;
@@ -253,7 +276,7 @@ int main()
             // Now that the projectile is about to shoot, change the projectileActive to true to prevent more projectiles to be shot
             // at the same time
             projectileActive = 1;
-            playSound("shoot", 3, 0);
+            playSound(shoot, 3, 0);
           }
           break;
         }
@@ -308,7 +331,7 @@ int main()
           invaders[r][c].frame = 3;
           projectileActive = 0;
           updateScore(&score, invaders[r][c].type, thescore);
-          playSound("invaderkilled", 2, 0);
+          playSound(invaderkilled, 2, 0);
         }
 
       }
@@ -327,7 +350,7 @@ int main()
       Mix_Pause(4);
       projectileActive = 0;
       updateScore(&score, 9, thescore);
-      playSound("invaderkilled", 2, 0);
+      playSound(invaderkilled, 2, 0);
     }
 
   }
@@ -362,7 +385,7 @@ int main()
 
   if(alien.active)
   {
-    wooAlien(ren, alien_sprite, tex, &alien, direction);
+    wooAlien(ren, alien_sprite, tex, &alien, direction, ufo_lowpitch);
   }
 
   // Draw a line to separate the info bar from the field
@@ -372,7 +395,7 @@ int main()
   //printf("%s\n", thescore);
   renderSomeText(font, ren, thescore, &scoreHolder);
 
-  playMusic(gameSpeed);
+  playMusic(gameSpeed, music);
 
   // Up until now everything was drawn behind the scenes.
   // This will show the new, red contents of the window.
@@ -387,6 +410,13 @@ int main()
   /// 'cdave' (April 13, 2014). GitHub Gist
   /// Available from: https://gist.github.com/cdave1/10563386 [Accessed 24 October 2014].
 
+  Mix_FreeChunk(music[0]);
+  Mix_FreeChunk(music[1]);
+  Mix_FreeChunk(music[2]);
+  Mix_FreeChunk(music[3]);
+  Mix_FreeChunk(shoot);
+  Mix_FreeChunk(invaderkilled);
+  Mix_FreeChunk(ufo_lowpitch);
   Mix_CloseAudio();
   TTF_Quit();
   SDL_Quit();
@@ -693,23 +723,12 @@ void updateScore(int *score, int alienType, char thescore[17])
     sprintf(thescore, "Score: %04i", *score);
 }
 
-void playSound(char *soundFile, int chanToPlay, int loops)
+void playSound(Mix_Chunk *sound, int chanToPlay, int loops)
 {
-    // Initialize the stuff for playing sound
-    char file[50];
-    memset(file, 0, 50);
-    Mix_Chunk *sound = NULL;
-    sprintf(file, "sounds/%s.wav", soundFile);
 
     if(chanToPlay == 0)
     {
         chanToPlay = -1;
-    }
-
-    // Loading the WAV file and checking for errors
-    sound = Mix_LoadWAV(file);
-    if(sound == NULL) {
-        fprintf(stderr, "Unable to load WAV file: %s\n", Mix_GetError());
     }
 
     // Intializing the channel, sound and play the sound once, check for errors
@@ -721,14 +740,14 @@ void playSound(char *soundFile, int chanToPlay, int loops)
 
 }
 
-void wooAlien(SDL_Renderer *ren, SDL_Rect alien_sprite, SDL_Texture *tex, Invader *alien, int direction)
+void wooAlien(SDL_Renderer *ren, SDL_Rect alien_sprite, SDL_Texture *tex, Invader *alien, int direction, Mix_Chunk *ufosound)
 {
     if(direction == 0)
         alien->pos.x += 3;
     else
         alien->pos.x -= 3;
 
-    playSound("ufo_lowpitch", 4, -1);
+    playSound(ufosound, 4, -1);
     //printf("%d\n", alien->pos.x);
 
     if(alien->pos.x < -SPRITEWIDTH || alien->pos.x > WIDTH+SPRITEWIDTH)
@@ -740,14 +759,11 @@ void wooAlien(SDL_Renderer *ren, SDL_Rect alien_sprite, SDL_Texture *tex, Invade
     SDL_RenderCopy(ren, tex, &alien_sprite, &alien->pos);
 }
 
-void playMusic(int gameSpeed)
+void playMusic(int gameSpeed, Mix_Chunk *music[4])
 {
-    static int currentSound = 4;
-    char musicFile[24];
+    static int currentSound = 0;
     static int musicFrame = 0;
     int musicSpeed;
-
-    memset(musicFile, 0, 24);
 
     switch(gameSpeed)
     {
@@ -770,18 +786,17 @@ void playMusic(int gameSpeed)
 
         if(musicFrame%musicSpeed == 0)
         {
-            sprintf(musicFile, "fastinvader%i", currentSound);
 
-            if(currentSound < 4)
+            if(currentSound < 3)
             {
                 ++currentSound;
             }
             else
             {
-                currentSound = 1;
+                currentSound = 0;
             }
 
-            playSound(musicFile, 1, 0);
+            playSound(music[currentSound], 1, 0);
         }
     }
 
