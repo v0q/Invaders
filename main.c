@@ -4,8 +4,8 @@
 #include <SDL_ttf.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 #include "Invader.h"
-// include the map for the maze.
 // the width of the screen taking into account the maze and block
 #define WIDTH 800
 // the height of the screen taking into account the maze and block
@@ -18,8 +18,9 @@ enum DIRECTION{LEFT,RIGHT};
 
 // Declaring the functions
 void initializeInvaders(Invader invaders[ROWS][COLS]);
-void updateInvaders(Invader invaders[ROWS][COLS], int *gameSpeed, int *currentFrame);
+void updateInvaders(Invader invaders[ROWS][COLS], int *gameSpeed, int *currentFrame, int actInvaderInRow[COLS]);
 void drawInvaders(SDL_Renderer *ren,SDL_Texture *tex,Invader invaders[ROWS][COLS], int currentFrame);
+void invaderShootPewPew(int actInvadeInRow, int invaderProjectileActive[COLS], int randomColumn, Invader invaders[ROWS][COLS]);
 
 void moveSpaceShip(SDL_Rect *spaceShip, int moveDir);
 void drawSpaceShip(SDL_Renderer *ren, SDL_Texture *sStexture, SDL_Rect spaceShip);
@@ -29,7 +30,7 @@ void shootPewPew(SDL_Renderer *ren, SDL_Rect *projectile, SDL_Texture *tex);
 void explodeProjectile(SDL_Renderer *ren, SDL_Rect *projectileBoom, SDL_Texture *tex, int *explodeP);
 
 void playSound(Mix_Chunk *sound, int chanToPlay, int loops);
-void playMusic();
+void playMusic(int gameSpeed, Mix_Chunk *music[4]);
 
 SDL_Texture *updateScoreTex(TTF_Font *font, SDL_Renderer *ren, int *score, int alienType);
 
@@ -89,6 +90,11 @@ int main()
   int explodeP = 0;
   int currentFrame = 0;
   int quit=0;
+  int actInvaderInRow[COLS];
+  int invaderProjectileActive[COLS];
+
+  for(int i = 0; i < COLS; ++i)
+    invaderProjectileActive[i] = 0;
 
 
   // Initializing the stuff for the infobox
@@ -161,13 +167,6 @@ int main()
       fprintf(stderr, "Unable to load WAV file: %s\n", Mix_GetError());
   }
 
-/*  int channel;
-
-  channel = Mix_PlayChannel(-1, soundBassLo, -1);
-  if(channel == -1) {
-      fprintf(stderr, "Unable to play WAV file: %s\n", Mix_GetError());
-  }
-*/
   // we are now going to create an SDL window
   SDL_Window *win = 0;
   win = SDL_CreateWindow("Invaders", 100, 100, WIDTH, HEIGHT, SDL_WINDOW_SHOWN);
@@ -364,11 +363,13 @@ int main()
   }
 
   // Running the stuff that handles invader movement, drawing/rendering and spaceship rendering
-  updateInvaders(invaders, &gameSpeed, &currentFrame);
+  updateInvaders(invaders, &gameSpeed, &currentFrame, actInvaderInRow);
   drawInvaders(ren,tex,invaders, currentFrame);
   drawSpaceShip(ren, sStexture, spaceShip);
 
-  if(rand()%1000 == 0 && !alien.active)
+  srand(time(NULL));
+
+  if(rand()%20 == 0 && !alien.active)
   {
     alien.active = 1;
     if(rand()%3 == 0)
@@ -381,8 +382,27 @@ int main()
         alien.pos.x = WIDTH + SPRITEWIDTH;
         direction = 1;
     }
-    //printf("Random occurance\n");
+    printf("Random occurance\n");
   }
+
+  if(rand()%3 == 0)
+  {
+    int randomColumn = rand()%COLS;
+    if(actInvaderInRow[randomColumn] && !invaderProjectileActive[randomColumn])
+    {
+      invaderProjectileActive[randomColumn] = 1;
+      invaderShootPewPew(actInvaderInRow[randomColumn]-1, invaderProjectileActive, randomColumn, invaders);
+      //printf("WOOP %d\n", randomColumn);
+    }
+  }
+
+  for(int i = 0; i < COLS; ++i)
+  {
+    printf("%d ", invaderProjectileActive[i]);
+    invaderProjectileActive[i] = 0;
+  }
+  printf("\n");
+  //printf("%d\n", rand()%COLS);
 
   if(alien.active)
   {
@@ -477,6 +497,25 @@ void shootPewPew(SDL_Renderer *ren, SDL_Rect *projectile, SDL_Texture *tex)
 
   SDL_RenderCopy(ren, tex, &projectileSprite, projectile);
 
+}
+
+void invaderShootPewPew(int actInvaderInRow, int invaderProjectileActive[COLS], int randomColumn, Invader invaders[ROWS][COLS])
+{
+  SDL_Rect projectileSprite;
+  projectileSprite.x = 468;
+  projectileSprite.y = 379;
+  projectileSprite.w = 27;
+  projectileSprite.h = 50;
+
+  SDL_Rect invaderProjectile;
+  invaderProjectile.x = invaders[actInvaderInRow][randomColumn].pos.x;
+  invaderProjectile.y = invaders[actInvaderInRow][randomColumn].pos.y;
+  invaderProjectile.w = 6;
+  invaderProjectile.h = 18;
+
+  //invaderProjectileActive[randomColumn] = 0;
+
+  //SDL_RenderCopy(ren, tex, &projectileSprite, projectile);
 }
 
 void explodeProjectile(SDL_Renderer *ren, SDL_Rect *projectileBoom, SDL_Texture *tex, int *explodeP)
@@ -604,7 +643,7 @@ void drawInvaders(SDL_Renderer *ren, SDL_Texture *tex, Invader invaders[ROWS][CO
   }
 }
 
-void updateInvaders(Invader invaders[ROWS][COLS], int *gameSpeed, int *currentFrame)
+void updateInvaders(Invader invaders[ROWS][COLS], int *gameSpeed, int *currentFrame, int actInvaderInRow[COLS])
 {
   enum DIR{FWD,BWD};
   static int DIRECTION=FWD;
@@ -620,6 +659,8 @@ void updateInvaders(Invader invaders[ROWS][COLS], int *gameSpeed, int *currentFr
       // Loop through all the rows in a column
       for(int r = 0; r < ROWS; ++r)
       {
+        // If an active invader is found in the current column, stop the loop (no need to run further as this is the outermost active column
+        // and set the current column to be the active one
         if(invaders[r][c].active)
         {
           actColR = c;
@@ -641,6 +682,8 @@ void updateInvaders(Invader invaders[ROWS][COLS], int *gameSpeed, int *currentFr
       // Loop through all the rows in a column
       for(int r = 0; r < ROWS; ++r)
       {
+        // If an active invader is found in the current column, stop the loop (no need to run further as this is the outermost active column
+        // and set the current column to be the active one
         if(invaders[r][c].active)
         {
           actColL = c;
@@ -696,6 +739,9 @@ void updateInvaders(Invader invaders[ROWS][COLS], int *gameSpeed, int *currentFr
       }
       invaders[r][c].pos.y += yinc;
 
+      if(invaders[r][c].active)
+         actInvaderInRow[c] = r+1;
+
     }
   }
 }
@@ -723,28 +769,36 @@ void updateScore(int *score, int alienType, char thescore[17])
 
 SDL_Texture *updateScoreTex(TTF_Font *font, SDL_Renderer *ren, int *score, int alienType)
 {
+    // Making a variable which will contain the score and "Score: "-text
     char thescore[17];
     memset(thescore, 0, 17);
+    // Updating the score depending on the alien type
     *score += 10*(alienType+1);
     sprintf(thescore, "Score: %04i", *score);
 
+    // Stuff that will be used to create the texture
     SDL_Color fontColor = {255, 255, 255, 255};
-
     SDL_Surface *text = TTF_RenderText_Solid(font, thescore, fontColor);
+    SDL_Texture *textureToRet = SDL_CreateTextureFromSurface(ren, text);
 
-    return SDL_CreateTextureFromSurface(ren, text);
+    // Freeing the surface
     SDL_FreeSurface(text);
+
+    // Return the texture to be used later in the rendering of it
+    return textureToRet;
 }
 
 void playSound(Mix_Chunk *sound, int chanToPlay, int loops)
 {
 
+  // If channel to play the sound on is set to 0, we'll use -1 which checks the first available channel.
+  // Should be avoided as it could affect the bg music or anything with a preset channel
     if(chanToPlay == 0)
     {
         chanToPlay = -1;
     }
 
-    // Intializing the channel, sound and play the sound once, check for errors
+    // Initializing the channel, the sound and play the as many times as defined in the loops variable passed to the function
     int channel;
     channel = Mix_PlayChannel(chanToPlay, sound, loops);
     if(channel == -1) {
@@ -755,20 +809,23 @@ void playSound(Mix_Chunk *sound, int chanToPlay, int loops)
 
 void wooAlien(SDL_Renderer *ren, SDL_Rect alien_sprite, SDL_Texture *tex, Invader *alien, int direction, Mix_Chunk *ufosound)
 {
+  // Checks where the alien should be moving, i.e. if it spawned to the left or the right side of the screen
     if(direction == 0)
         alien->pos.x += 3;
     else
         alien->pos.x -= 3;
 
+    // While alien is active play the ufo sound
     playSound(ufosound, 4, -1);
-    //printf("%d\n", alien->pos.x);
 
-    if(alien->pos.x < -SPRITEWIDTH || alien->pos.x > WIDTH+SPRITEWIDTH)
+    // Checks if the ufo passed the screen and make it not active and stop the sound
+    if(alien->pos.x < -alien->pos.w || alien->pos.x > WIDTH+alien->pos.w)
     {
         alien->active = 0;
         Mix_Pause(4);
     }
 
+    // Render the ufo
     SDL_RenderCopy(ren, tex, &alien_sprite, &alien->pos);
 }
 
@@ -778,6 +835,7 @@ void playMusic(int gameSpeed, Mix_Chunk *music[4])
     static int musicFrame = 25;
     int musicSpeed;
 
+    // Check the current gamepeed and adjust the "music speed" or rather the interval between the bg bass noises accordingly
     switch(gameSpeed)
     {
         case 1: musicSpeed = 50; break;
@@ -793,6 +851,7 @@ void playMusic(int gameSpeed, Mix_Chunk *music[4])
         default: musicSpeed = 5; break;
     }
 
+    // Check if the channel 1 is active, i.e. the channel that's reserved for the bg music, if not continue to the "interval" calculations
     if(Mix_Playing(1) == 0)
     {
         if(musicFrame < musicSpeed)
@@ -804,6 +863,7 @@ void playMusic(int gameSpeed, Mix_Chunk *music[4])
             musicFrame = 1;
         }
 
+        // Plays the next bg sound on every _musicSpeed_ frame
         if(musicFrame%musicSpeed == 0)
         {
 
