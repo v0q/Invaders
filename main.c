@@ -10,7 +10,7 @@
 #define WIDTH 800
 // the height of the screen taking into account the maze and block
 #define HEIGHT 600
-#define ANIMATIONSEQUENCELENGTH 160
+#define ANIMATIONSEQUENCELENGTH 800
 #define INFOBOXHEIGHT 40
 #define FONTSIZE 16
 
@@ -26,7 +26,7 @@ void moveSpaceShip(SDL_Rect *spaceShip, int moveDir);
 void drawSpaceShip(SDL_Renderer *ren, SDL_Texture *sStexture, SDL_Rect spaceShip);
 void wooAlien(SDL_Renderer *ren, SDL_Texture *tex, Invader *alien, int direction, Mix_Chunk *ufosound);
 
-void shootPewPew(SDL_Renderer *ren, SDL_Rect *projectile, SDL_Texture *tex);
+void shootPewPew(SDL_Renderer *ren, SDL_Rect *projectile);
 void explodeProjectile(SDL_Renderer *ren, SDL_Rect *projectileBoom, SDL_Texture *tex, int *explodeP);
 
 void playSound(Mix_Chunk *sound, int chanToPlay, int loops);
@@ -70,8 +70,8 @@ int main()
   SDL_Rect projectile;
   projectile.x = 0;
   projectile.y = 0;
-  projectile.w = 6;
-  projectile.h = 18;
+  projectile.w = 2;
+  projectile.h = 8;
 
   // Initializing the box for projectile explosion
   SDL_Rect projectileBoom;
@@ -280,7 +280,7 @@ int main()
             // Now that the projectile is about to shoot, change the projectileActive to true to prevent more projectiles to be shot
             // at the same time
             projectileActive = 1;
-            playSound(shoot, 3, 0);
+            //playSound(shoot, 3, 0);
           }
           break;
         }
@@ -309,49 +309,53 @@ int main()
     }
 
     // Pass the stuff needed to display and move the projectile to the function
-    shootPewPew(ren, &projectile, tex);
+    shootPewPew(ren, &projectile);
 
-    // Check if the projectile collides with an invader by running through all the invaders with for loops
-    // and checking if the coordinates of the projectile hit an invader.
-    // This is done by checking if the projectiles x-coordinate is between the invaders x-coordinate and x-coordinate + SPRITEWIDTH
-    // and if the projectiles y-coordinate is between the y-coordinate and y-coordinate + SPRITEHEIGHT of an invader
+    // Check if the projectile collides with an invader by running through all the invaders with for loops.
     for(int r=0; r<ROWS; ++r)
     {
       for(int c=0; c<COLS; ++c)
       {
 
-        // Check if the projectile collides with any of 'em
+        /* DEPRECATED, found the SDL_HasIntersection function
+         *     // This is done by checking if the projectiles x-coordinate is between the invaders x-coordinate and x-coordinate + SPRITEWIDTH
+               // and if the projectiles y-coordinate is between the y-coordinate and y-coordinate + SPRITEHEIGHT of an invader
         if(invaders[r][c].pos.x   <=  projectile.x                      &&
            projectile.x           <=  invaders[r][c].pos.x+SPRITEWIDTH  &&
            invaders[r][c].pos.y   <=  projectile.y                      &&
            projectile.y           <=  invaders[r][c].pos.y+SPRITEHEIGHT &&
-           invaders[r][c].active)
+           invaders[r][c].active)*/
+
+        // Check if the projectile collides with any of 'em
+        if(SDL_HasIntersection(&invaders[r][c].pos, &projectile) && invaders[r][c].active)
         {
           // If the projectile hits a target, destroy the projectile and change the frame of that specific invader
           // to 3 which equals to the explosion "animation", the actual destroyal of the object happens later when the explosion is complete.
-          invaders[r][c].frame = 3;
           projectileActive = 0;
+          invaders[r][c].frame = 3;
           textTexture = updateScoreTex(font, ren, &score, invaders[r][c].type);
-          playSound(invaderkilled, 2, 0);
+          //playSound(invaderkilled, 2, 0);
         }
 
       }
     }
 
-    // Check if the projectile collides with the alien
+    /* DEPRECATED, found the SDL_HasIntersection function
     if(alien.pos.x   <=  projectile.x               &&
        projectile.x  <=  alien.pos.x+alien.pos.w    &&
        alien.pos.y   <=  projectile.y               &&
        projectile.y  <=  alien.pos.y+alien.pos.h    &&
-       alien.active)
+       alien.active)*/
+    // Check if the projectile collides with the alien
+    if(SDL_HasIntersection(&alien.pos, &projectile) && alien.active)
     {
       // If the projectile hits a target, destroy the projectile and change the frame of that specific invader
       // to 3 which equals to the explosion "animation", the actual destroyal of the object happens later when the explosion is complete.
-      alien.active = 0;
+      alien.frame = 1;
       Mix_Pause(4);
       projectileActive = 0;
       textTexture = updateScoreTex(font, ren, &score, 9);
-      playSound(invaderkilled, 2, 0);
+      //playSound(invaderkilled, 2, 0);
     }
 
   }
@@ -396,13 +400,12 @@ int main()
     // Randomises the column from which the projectile will be shot
     int randomColumn = rand()%COLS;
     // Check if a projectile from that column is not active at the given moment and there's actually invaders alive at the given column
-    if(actInvaderInRow[randomColumn] && !invaderProjectileActive[randomColumn])
+    if(actInvaderInRow[randomColumn] != 0 && !invaderProjectileActive[randomColumn])
     {
       // If everything passed this far, set the starting point for a column and set it to be active
       invaderProjectile[randomColumn].x = invaders[actInvaderInRow[randomColumn]-1][randomColumn].pos.x;
       invaderProjectile[randomColumn].y = invaders[actInvaderInRow[randomColumn]-1][randomColumn].pos.y+SPRITEHEIGHT;
       invaderProjectileActive[randomColumn] = 1;
-      //printf("WOOP %d - %d\n", actInvaderInRow[randomColumn], randomColumn);
     }
   }
 
@@ -418,6 +421,23 @@ int main()
       // Checks if the projectile has passed the screen and destroys it
       if(invaderProjectile[i].y > HEIGHT)
         invaderProjectileActive[i] = 0;
+
+      /* DEPRECATED, found the SDL_HasIntersection function
+       * if((spaceShip.x              <= invaderProjectile[i].x  ||
+          spaceShip.x              <= invaderProjectile[i].x+invaderProjectile[i].w) &&
+         (spaceShip.x+spaceShip.w  >= invaderProjectile[i].x ||
+          spaceShip.x+spaceShip.w  >= invaderProjectile[i].x+invaderProjectile[i].w) &&
+         (spaceShip.y              <= invaderProjectile[i].y ||
+          spaceShip.y              <= invaderProjectile[i].y+invaderProjectile[i].h) &&
+         (spaceShip.y+spaceShip.h  >= invaderProjectile[i].y ||
+          spaceShip.y+spaceShip.h  >= invaderProjectile[i].y+invaderProjectile[i].h))*/
+
+      // Checks if the projectile hits the player and destroys the projectile
+      if(SDL_HasIntersection(&spaceShip, &invaderProjectile[i]))
+      {
+        printf("BOOM you're dead\n");
+        invaderProjectileActive[i] = 0;
+      }
     }
   }
 
@@ -435,7 +455,7 @@ int main()
   SDL_RenderCopy(ren, textTexture, NULL, &scoreHolder);
 
   // Loop and run the background music based on the current gamespeed
-  playMusic(gameSpeed, music);
+  //playMusic(gameSpeed, music);
 
   // Up until now everything was drawn behind the scenes.
   // This will show the new, red contents of the window.
@@ -465,7 +485,7 @@ void moveSpaceShip(SDL_Rect *spaceShip, int moveDir)
     case LEFT:
     {
       // "Boundary collision left"
-      if(spaceShip->x > 0+SPRITEWIDTH)
+      if(spaceShip->x > 0)
       {
         spaceShip->x -= 5;
       }
@@ -478,7 +498,7 @@ void moveSpaceShip(SDL_Rect *spaceShip, int moveDir)
     case RIGHT:
     {
       // "Boundary collision right"
-      if(spaceShip->x < WIDTH-2*(SPRITEWIDTH))
+      if(spaceShip->x < WIDTH-SPRITEWIDTH)
       {
         spaceShip->x += 5;
       }
@@ -503,18 +523,12 @@ void drawSpaceShip(SDL_Renderer *ren, SDL_Texture *sStexture, SDL_Rect spaceShip
   SDL_RenderCopy(ren, sStexture, &sS_sprite, &spaceShip);
 }
 
-void shootPewPew(SDL_Renderer *ren, SDL_Rect *projectile, SDL_Texture *tex)
+void shootPewPew(SDL_Renderer *ren, SDL_Rect *projectile)
 {
-  SDL_Rect projectileSprite;
-  projectileSprite.x = 468;
-  projectileSprite.y = 379;
-  projectileSprite.w = 27;
-  projectileSprite.h = 50;
+  projectile->y -= 16;
 
-  projectile->y -= 8;
-
-  SDL_RenderCopy(ren, tex, &projectileSprite, projectile);
-
+  SDL_SetRenderDrawColor(ren, 255, 255, 255, 255);
+  SDL_RenderFillRect(ren, projectile);
 }
 
 void invaderShootPewPew(SDL_Renderer *ren, SDL_Texture *tex, SDL_Rect *invaderProjectile)
@@ -525,8 +539,7 @@ void invaderShootPewPew(SDL_Renderer *ren, SDL_Texture *tex, SDL_Rect *invaderPr
   projectileSprite.w = 27;
   projectileSprite.h = 50;
 
-  invaderProjectile->y += 8;
-  //invaderProjectileActive[randomColumn] = 0;
+  invaderProjectile->y += 4;
 
   SDL_RenderCopy(ren, tex, &projectileSprite, invaderProjectile);
 }
@@ -665,6 +678,7 @@ void updateInvaders(Invader invaders[ROWS][COLS], int *gameSpeed, int *currentFr
   static int actColL = 0;
   int stopLoop = 0;
   static int updateSpeed = 1;
+  static int animationFrame = 0;
 
   // Loop through the column from right to find the active outermost column on right
   for(int c = COLS-1; c >= 0; --c)
@@ -713,16 +727,23 @@ void updateInvaders(Invader invaders[ROWS][COLS], int *gameSpeed, int *currentFr
   if(invaders[0][actColR].pos.x>=WIDTH-(SPRITEWIDTH*2-SPRITEWIDTH/2))
   {
     DIRECTION=BWD;
-    yinc=GAP/2;
+    yinc=GAP;
+    if(updateSpeed%3 == 0 && *gameSpeed < 10)
+    {
+      ++*gameSpeed;
+      animationFrame = 0;
+    }
+    ++updateSpeed;
   }
 
   else if(invaders[0][actColL].pos.x<=SPRITEWIDTH/2)
   {
     DIRECTION=FWD;
-    yinc=GAP/2;
-    if(updateSpeed%2 == 0 && *gameSpeed < 10)
+    yinc=GAP;
+    if(updateSpeed%3 == 0 && *gameSpeed < 10)
     {
-        ++*gameSpeed;
+      ++*gameSpeed;
+      animationFrame = 0;
     }
     ++updateSpeed;
   }
@@ -740,7 +761,9 @@ void updateInvaders(Invader invaders[ROWS][COLS], int *gameSpeed, int *currentFr
         invaders[r][c].pos.x-=1+*gameSpeed;
       }
 
-      if(invaders[r][c].pos.x%ANIMATIONSEQUENCELENGTH == 0)
+      // Changing the sprite animation
+      ++animationFrame;
+      if(animationFrame == ANIMATIONSEQUENCELENGTH/(*gameSpeed))
       {
         ++*currentFrame;
 
@@ -748,8 +771,9 @@ void updateInvaders(Invader invaders[ROWS][COLS], int *gameSpeed, int *currentFr
         {
           *currentFrame = 0;
         }
-
+        animationFrame = 0;
       }
+
       invaders[r][c].pos.y += yinc;
 
       if(invaders[r][c].active)
@@ -837,14 +861,26 @@ void wooAlien(SDL_Renderer *ren, SDL_Texture *tex, Invader *alien, int direction
   alien_sprite.w = 125;
   alien_sprite.h = 61;
 
-  // Checks where the alien should be moving, i.e. if it spawned to the left or the right side of the screen
-    if(direction == 0)
-        alien->pos.x += 3;
-    else
-        alien->pos.x -= 3;
+  static int destroySequence = 0;
 
+  // Checks if the alien has been destroyed and if the destroy sequence should be run
+  if(alien->frame == 1)
+  {
+    alien_sprite.x=340;
+    alien_sprite.y=616;
+    alien_sprite.w=95;
+    alien_sprite.h=59;
+    destroySequence += 1;
+  }
+  else
+  {
+    // Checks where the alien should be moving, i.e. if it spawned to the left or the right side of the screen
+    if(direction == 0)
+        alien->pos.x += 4;
+    else
+        alien->pos.x -= 4;
     // While alien is active play the ufo sound
-    playSound(ufosound, 4, -1);
+    //playSound(ufosound, 4, -1);
 
     // Checks if the ufo passed the screen and make it not active and stop the sound
     if(alien->pos.x < -alien->pos.w || alien->pos.x > WIDTH+alien->pos.w)
@@ -852,9 +888,17 @@ void wooAlien(SDL_Renderer *ren, SDL_Texture *tex, Invader *alien, int direction
         alien->active = 0;
         Mix_Pause(4);
     }
+  }
 
-    // Render the ufo
-    SDL_RenderCopy(ren, tex, &alien_sprite, &alien->pos);
+  if(destroySequence == 10)
+  {
+    destroySequence = 0;
+    alien->active = 0;
+    alien->frame = 0;
+  }
+
+  // Render the ufo
+  SDL_RenderCopy(ren, tex, &alien_sprite, &alien->pos);
 }
 
 void playMusic(int gameSpeed, Mix_Chunk *music[4])
