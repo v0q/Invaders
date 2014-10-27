@@ -20,11 +20,11 @@ enum DIRECTION{LEFT,RIGHT};
 void initializeInvaders(Invader invaders[ROWS][COLS]);
 void updateInvaders(Invader invaders[ROWS][COLS], int *gameSpeed, int *currentFrame, int actInvaderInRow[COLS]);
 void drawInvaders(SDL_Renderer *ren,SDL_Texture *tex,Invader invaders[ROWS][COLS], int currentFrame);
-void invaderShootPewPew(int actInvadeInRow, int invaderProjectileActive[COLS], int randomColumn, Invader invaders[ROWS][COLS]);
+void invaderShootPewPew(SDL_Renderer *ren, SDL_Texture *tex, SDL_Rect *invaderProjectile);
 
 void moveSpaceShip(SDL_Rect *spaceShip, int moveDir);
 void drawSpaceShip(SDL_Renderer *ren, SDL_Texture *sStexture, SDL_Rect spaceShip);
-void wooAlien(SDL_Renderer *ren, SDL_Rect alien_sprite, SDL_Texture *tex, Invader *alien, int direction, Mix_Chunk *ufosound);
+void wooAlien(SDL_Renderer *ren, SDL_Texture *tex, Invader *alien, int direction, Mix_Chunk *ufosound);
 
 void shootPewPew(SDL_Renderer *ren, SDL_Rect *projectile, SDL_Texture *tex);
 void explodeProjectile(SDL_Renderer *ren, SDL_Rect *projectileBoom, SDL_Texture *tex, int *explodeP);
@@ -66,12 +66,6 @@ int main()
   spaceShip.w = SPRITEWIDTH;
   spaceShip.h = 20;
 
-  SDL_Rect alien_sprite;
-  alien_sprite.x = 0;
-  alien_sprite.y = 616;
-  alien_sprite.w = 125;
-  alien_sprite.h = 61;
-
   // Initializing projectile
   SDL_Rect projectile;
   projectile.x = 0;
@@ -82,6 +76,8 @@ int main()
   // Initializing the box for projectile explosion
   SDL_Rect projectileBoom;
   projectileBoom.y = +infoLine.y+infoLine.h;
+
+  SDL_Rect invaderProjectile[COLS];
 
   // Some variables used all around
   int gameSpeed = 1;
@@ -94,7 +90,13 @@ int main()
   int invaderProjectileActive[COLS];
 
   for(int i = 0; i < COLS; ++i)
+  {
+    invaderProjectile[i].x = 0;
+    invaderProjectile[i].y = 0;
+    invaderProjectile[i].w = 6;
+    invaderProjectile[i].h = 18;
     invaderProjectileActive[i] = 0;
+  }
 
 
   // Initializing the stuff for the infobox
@@ -282,10 +284,9 @@ int main()
           }
           break;
         }
-
-       }
+        }
+      }
     }
-  }
 
   // now we clear the screen (will use the clear colour set previously)
   SDL_SetRenderDrawColor(ren, 0, 0, 0, 255);
@@ -367,12 +368,16 @@ int main()
   drawInvaders(ren,tex,invaders, currentFrame);
   drawSpaceShip(ren, sStexture, spaceShip);
 
+  // Set the a new seed for the random stuff every second, i.e. something random can occur only every second instead of every frame
   srand(time(NULL));
 
+  // Basically set the "probability" of an ufo spawn to be around 5% every second; the rand()%20 can have values of 0..19 thus resulting in a 1/20 chance of it being 0
+  // which translates to 5% probability, also checking that there's no alien/ufo active at the given moment
   if(rand()%20 == 0 && !alien.active)
   {
+    // Sets the alien/ufo to be active and gives a 50/50 chance for it to spawn on either left or the right side of the screen
     alien.active = 1;
-    if(rand()%3 == 0)
+    if(rand()%2 == 0)
     {
         alien.pos.x = -SPRITEWIDTH;
         direction = 0;
@@ -382,31 +387,44 @@ int main()
         alien.pos.x = WIDTH + SPRITEWIDTH;
         direction = 1;
     }
-    printf("Random occurance\n");
+    //printf("Random occurance\n");
   }
 
+  // Randomises the event of invaders shooting, gives a 33% chance of a possible invader projectile every second
   if(rand()%3 == 0)
   {
+    // Randomises the column from which the projectile will be shot
     int randomColumn = rand()%COLS;
+    // Check if a projectile from that column is not active at the given moment and there's actually invaders alive at the given column
     if(actInvaderInRow[randomColumn] && !invaderProjectileActive[randomColumn])
     {
+      // If everything passed this far, set the starting point for a column and set it to be active
+      invaderProjectile[randomColumn].x = invaders[actInvaderInRow[randomColumn]-1][randomColumn].pos.x;
+      invaderProjectile[randomColumn].y = invaders[actInvaderInRow[randomColumn]-1][randomColumn].pos.y+SPRITEHEIGHT;
       invaderProjectileActive[randomColumn] = 1;
-      invaderShootPewPew(actInvaderInRow[randomColumn]-1, invaderProjectileActive, randomColumn, invaders);
-      //printf("WOOP %d\n", randomColumn);
+      //printf("WOOP %d - %d\n", actInvaderInRow[randomColumn], randomColumn);
     }
   }
 
+  // Loop through the columns of invaders and search for active projectiles
   for(int i = 0; i < COLS; ++i)
   {
-    printf("%d ", invaderProjectileActive[i]);
-    invaderProjectileActive[i] = 0;
-  }
-  printf("\n");
-  //printf("%d\n", rand()%COLS);
+    if(invaderProjectileActive[i])
+    {
+      //printf("invaderShootPewPew(%d - %d - %d);\n", i, invaderProjectile[i].x, invaderProjectile[i].y);
+      // If a shot projectile is found from any given column, send the data to the function that handles its movement and rendering
+      invaderShootPewPew(ren, tex, &invaderProjectile[i]);
 
+      // Checks if the projectile has passed the screen and destroys it
+      if(invaderProjectile[i].y > HEIGHT)
+        invaderProjectileActive[i] = 0;
+    }
+  }
+
+  // If alien has spawned, pass the data to the function that moves and renders the alien (ufo)
   if(alien.active)
   {
-    wooAlien(ren, alien_sprite, tex, &alien, direction, ufo_lowpitch);
+    wooAlien(ren, tex, &alien, direction, ufo_lowpitch);
   }
 
   // Draw a line to separate the info bar from the field
@@ -499,7 +517,7 @@ void shootPewPew(SDL_Renderer *ren, SDL_Rect *projectile, SDL_Texture *tex)
 
 }
 
-void invaderShootPewPew(int actInvaderInRow, int invaderProjectileActive[COLS], int randomColumn, Invader invaders[ROWS][COLS])
+void invaderShootPewPew(SDL_Renderer *ren, SDL_Texture *tex, SDL_Rect *invaderProjectile)
 {
   SDL_Rect projectileSprite;
   projectileSprite.x = 468;
@@ -507,15 +525,10 @@ void invaderShootPewPew(int actInvaderInRow, int invaderProjectileActive[COLS], 
   projectileSprite.w = 27;
   projectileSprite.h = 50;
 
-  SDL_Rect invaderProjectile;
-  invaderProjectile.x = invaders[actInvaderInRow][randomColumn].pos.x;
-  invaderProjectile.y = invaders[actInvaderInRow][randomColumn].pos.y;
-  invaderProjectile.w = 6;
-  invaderProjectile.h = 18;
-
+  invaderProjectile->y += 8;
   //invaderProjectileActive[randomColumn] = 0;
 
-  //SDL_RenderCopy(ren, tex, &projectileSprite, projectile);
+  SDL_RenderCopy(ren, tex, &projectileSprite, invaderProjectile);
 }
 
 void explodeProjectile(SDL_Renderer *ren, SDL_Rect *projectileBoom, SDL_Texture *tex, int *explodeP)
@@ -740,7 +753,15 @@ void updateInvaders(Invader invaders[ROWS][COLS], int *gameSpeed, int *currentFr
       invaders[r][c].pos.y += yinc;
 
       if(invaders[r][c].active)
-         actInvaderInRow[c] = r+1;
+      {
+        actInvaderInRow[c] = r+1;
+      }
+
+      if(actInvaderInRow[c] == 1 && !invaders[0][c].active)
+      {
+        actInvaderInRow[c] = 0;
+      }
+
 
     }
   }
@@ -807,8 +828,15 @@ void playSound(Mix_Chunk *sound, int chanToPlay, int loops)
 
 }
 
-void wooAlien(SDL_Renderer *ren, SDL_Rect alien_sprite, SDL_Texture *tex, Invader *alien, int direction, Mix_Chunk *ufosound)
+void wooAlien(SDL_Renderer *ren, SDL_Texture *tex, Invader *alien, int direction, Mix_Chunk *ufosound)
 {
+  // Set the sprite coordinates for the alien
+  SDL_Rect alien_sprite;
+  alien_sprite.x = 0;
+  alien_sprite.y = 616;
+  alien_sprite.w = 125;
+  alien_sprite.h = 61;
+
   // Checks where the alien should be moving, i.e. if it spawned to the left or the right side of the screen
     if(direction == 0)
         alien->pos.x += 3;
