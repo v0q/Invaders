@@ -451,7 +451,7 @@ int main()
       // Checks if the projectile hits the player and destroys the projectile
       if(SDL_HasIntersection(&spaceShip, &invaderProjectile[i]) && !playerDead)
       {
-        printf("BOOM you're dead\n");
+        //printf("BOOM you're dead\n");
         invaderProjectileActive[i] = 0;
         playerDead = 1;
         livesTexture = updateLivesTex(font, ren, lives);
@@ -975,11 +975,13 @@ void renderLives(SDL_Renderer *ren, SDL_Texture *tex, char lives[1])
   livesTextHolder.h = 20;
   livesTextHolder.y = HEIGHT-25;
 
+  SDL_SetTextureColorMod(tex, 0, 255, 0);
   for(int i = '1'; i < lives[0]; ++i)
   {
     livesTextHolder.x = 25 * ((i%49)+1)+((i%49)*15);
     SDL_RenderCopy(ren, tex, &livesSprite, &livesTextHolder);
   }
+  SDL_SetTextureColorMod(tex, 255, 255, 255);
 }
 
 void playSound(Mix_Chunk *sound, int chanToPlay, int loops)
