@@ -23,7 +23,7 @@ void drawInvaders(SDL_Renderer *ren,SDL_Texture *tex,Invader invaders[ROWS][COLS
 void invaderShootPewPew(SDL_Renderer *ren, SDL_Texture *tex, SDL_Rect *invaderProjectile);
 
 void moveSpaceShip(SDL_Rect *spaceShip, int moveDir);
-void drawSpaceShip(SDL_Renderer *ren, SDL_Texture *sStexture, SDL_Rect *spaceShip, int *playerDead, char lives[1], int *gameover);
+void drawSpaceShip(SDL_Renderer *ren, SDL_Texture *sStexture, SDL_Rect *spaceShip, int *playerDead, char *lives, int *gameover);
 void wooAlien(SDL_Renderer *ren, SDL_Texture *tex, Invader *alien, int direction, Mix_Chunk *ufosound);
 
 void shootPewPew(SDL_Renderer *ren, SDL_Rect *projectile);
@@ -107,12 +107,8 @@ int main()
   int playerDead = 0;
   int startgame = 0;
 
-  char thegameover[9];
-  memset(thegameover, 0, 9);
-  sprintf(thegameover, "Game Over");
-  char pressanykey[25];
-  memset(pressanykey, 0, 25);
-  sprintf(pressanykey, "Press any key to continue");
+  char thegameover[] = "Game Over";
+  char pressanykey[] = "Press any key to continue";
 
   for(int i = 0; i < COLS; ++i)
   {
@@ -143,9 +139,7 @@ int main()
   memset(thescore, 0, 17);
   sprintf(thescore, "Score: %04i", score);
 
-  char lives[2];
-  memset(lives, 0, 2);
-  sprintf(lives, "3");
+  char lives[] = "3";
 
   // Initialize TTF
   if(TTF_Init() == -1)
