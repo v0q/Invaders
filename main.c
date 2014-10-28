@@ -975,7 +975,7 @@ void renderLives(SDL_Renderer *ren, SDL_Texture *tex, char lives[1])
   livesTextHolder.h = 20;
   livesTextHolder.y = HEIGHT-25;
 
-  SDL_SetTextureColorMod(tex, 0, 255, 0);
+  SDL_SetTextureColorMod(tex, 35, 255, 0);
   for(int i = '1'; i < lives[0]; ++i)
   {
     livesTextHolder.x = 25 * ((i%49)+1)+((i%49)*15);
