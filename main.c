@@ -494,34 +494,62 @@ int main()
 
   }
 
+  // GAME OVER
+  char thegameover[9];
+  sprintf(thegameover, "Game Over");
+  char pressanykey[25];
+  sprintf(pressanykey, "Press any key to continue");
+
+  SDL_Rect gameoverHolder;
+  SDL_Rect anykeyHolder;
+
+  SDL_Texture *gameoverTexture;
+  SDL_Texture *anykeyTexture;
+
+  TTF_Font* gofont = TTF_OpenFont("fonts/space_invaders.ttf", FONTSIZE*3);
+  SDL_Surface *textGameover = TTF_RenderText_Solid(gofont, thegameover, fontColor);
+  SDL_Surface *textAnykey = TTF_RenderText_Solid(font, pressanykey, fontColor);
+
+  gameoverTexture = SDL_CreateTextureFromSurface(ren, textGameover);
+  anykeyTexture = SDL_CreateTextureFromSurface(ren, textAnykey);
+
+  SDL_FreeSurface(textGameover);
+  SDL_FreeSurface(textAnykey);
+
+  SDL_QueryTexture(gameoverTexture, NULL, NULL, &gameoverHolder.w, &gameoverHolder.h);
+  SDL_QueryTexture(anykeyTexture, NULL, NULL, &anykeyHolder.w, &anykeyHolder.h);
+
+  gameoverHolder.x = (WIDTH-gameoverHolder.w)/2;
+  gameoverHolder.y = (HEIGHT-gameoverHolder.h)/2;
+
+  anykeyHolder.x = (WIDTH-anykeyHolder.w)/2;
+  anykeyHolder.y = gameoverHolder.y+gameoverHolder.h;
+
   while(gameover)
   {
     SDL_Event event;
-    // grab the SDL even (this will be keys etc)
-    while (SDL_PollEvent(&event))
-    {
-      // look for the x of the window being clicked and exit
-      if (event.type == SDL_QUIT)
-        gameover = 0;
-      // check for a key down
-      if (event.type == SDL_KEYDOWN)
-      {
-        switch (event.key.keysym.sym)
-        {
 
-        // if we have an escape quit
-        case SDLK_ESCAPE : gameover = 0; break;
-        }
-      }
-    }
 
     if(loadNewScreen <= 50)
       ++loadNewScreen;
 
     if(loadNewScreen > 50)
     {
+      while (SDL_PollEvent(&event))
+      {
+        // look for the x of the window being clicked and exit
+        if (event.type == SDL_QUIT)
+          gameover = 0;
+        // check for a key down
+        if (event.type == SDL_KEYDOWN)
+        {
+          gameover = 0;
+        }
+      }
       SDL_SetRenderDrawColor(ren, 0, 0, 0, 255);
       SDL_RenderClear(ren);
+      SDL_RenderCopy(ren, gameoverTexture, NULL, &gameoverHolder);
+      SDL_RenderCopy(ren, anykeyTexture, NULL, &anykeyHolder);
     }
 
     SDL_RenderPresent(ren);
