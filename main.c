@@ -105,6 +105,14 @@ int main()
   int gameover = 0;
   int loadNewScreen = 1;
   int playerDead = 0;
+  int startgame = 0;
+
+  char thegameover[9];
+  memset(thegameover, 0, 9);
+  sprintf(thegameover, "Game Over");
+  char pressanykey[25];
+  memset(pressanykey, 0, 25);
+  sprintf(pressanykey, "Press any key to continue");
 
   for(int i = 0; i < COLS; ++i)
   {
@@ -152,6 +160,7 @@ int main()
   {
     printf("BOOM FAILED %s\n", TTF_GetError());
   }
+
 
   // initialise SDL and check that it worked otherwise exit
   // see here for details http://wiki.libsdl.org/CategoryAPI
@@ -253,6 +262,59 @@ int main()
   livesTexture = SDL_CreateTextureFromSurface(ren, textLives);
   SDL_FreeSurface(textLives);
   SDL_QueryTexture(livesTexture, NULL, NULL, &livesHolder.w, &livesHolder.h);
+
+
+
+  // GAME OVER & Press Any Key
+
+  SDL_Rect gameoverHolder;
+  SDL_Rect anykeyHolder;
+
+  SDL_Texture *gameoverTexture;
+  SDL_Texture *anykeyTexture;
+
+  TTF_Font* gofont = TTF_OpenFont("fonts/space_invaders.ttf", FONTSIZE*3);
+  SDL_Surface *textGameover = TTF_RenderText_Solid(gofont, thegameover, fontColor);
+  SDL_Surface *textAnykey = TTF_RenderText_Solid(font, pressanykey, fontColor);
+
+  gameoverTexture = SDL_CreateTextureFromSurface(ren, textGameover);
+  anykeyTexture = SDL_CreateTextureFromSurface(ren, textAnykey);
+
+  SDL_FreeSurface(textGameover);
+  SDL_FreeSurface(textAnykey);
+
+  SDL_QueryTexture(gameoverTexture, NULL, NULL, &gameoverHolder.w, &gameoverHolder.h);
+  SDL_QueryTexture(anykeyTexture, NULL, NULL, &anykeyHolder.w, &anykeyHolder.h);
+
+  gameoverHolder.x = (WIDTH-gameoverHolder.w)/2;
+  gameoverHolder.y = (HEIGHT-gameoverHolder.h)/2;
+
+  anykeyHolder.x = (WIDTH-anykeyHolder.w)/2;
+  anykeyHolder.y = (HEIGHT-gameoverHolder.h)/2;
+
+
+
+  while(!startgame)
+  {
+
+    SDL_Event event;
+    while (SDL_PollEvent(&event))
+    {
+      // look for the x of the window being clicked and exit
+      if (event.type == SDL_QUIT)
+        quit = 1;
+      // check for a key down
+      if (event.type == SDL_KEYDOWN)
+      {
+        startgame = 1;
+      }
+    }
+
+    SDL_SetRenderDrawColor(ren, 0, 0, 0, 255);
+    SDL_RenderClear(ren);
+    SDL_RenderCopy(ren, anykeyTexture, NULL, &anykeyHolder);
+    SDL_RenderPresent(ren);
+  }
 
 
   // now we are going to loop forever, process the keys then draw
@@ -410,8 +472,8 @@ int main()
     //printf("Random occurance\n");
   }
 
-  // Randomises the event of invaders shooting, gives a 33% chance of a possible invader projectile every second
-  if(rand()%3 == 0)
+  // Randomises the event of invaders shooting, gives a 50% chance of a possible invader projectile every second
+  if(rand()%2 == 0)
   {
     // Randomises the column from which the projectile will be shot
     int randomColumn = rand()%COLS;
@@ -494,35 +556,6 @@ int main()
 
   }
 
-  // GAME OVER
-  char thegameover[9];
-  sprintf(thegameover, "Game Over");
-  char pressanykey[25];
-  sprintf(pressanykey, "Press any key to continue");
-
-  SDL_Rect gameoverHolder;
-  SDL_Rect anykeyHolder;
-
-  SDL_Texture *gameoverTexture;
-  SDL_Texture *anykeyTexture;
-
-  TTF_Font* gofont = TTF_OpenFont("fonts/space_invaders.ttf", FONTSIZE*3);
-  SDL_Surface *textGameover = TTF_RenderText_Solid(gofont, thegameover, fontColor);
-  SDL_Surface *textAnykey = TTF_RenderText_Solid(font, pressanykey, fontColor);
-
-  gameoverTexture = SDL_CreateTextureFromSurface(ren, textGameover);
-  anykeyTexture = SDL_CreateTextureFromSurface(ren, textAnykey);
-
-  SDL_FreeSurface(textGameover);
-  SDL_FreeSurface(textAnykey);
-
-  SDL_QueryTexture(gameoverTexture, NULL, NULL, &gameoverHolder.w, &gameoverHolder.h);
-  SDL_QueryTexture(anykeyTexture, NULL, NULL, &anykeyHolder.w, &anykeyHolder.h);
-
-  gameoverHolder.x = (WIDTH-gameoverHolder.w)/2;
-  gameoverHolder.y = (HEIGHT-gameoverHolder.h)/2;
-
-  anykeyHolder.x = (WIDTH-anykeyHolder.w)/2;
   anykeyHolder.y = gameoverHolder.y+gameoverHolder.h;
 
   while(gameover)
