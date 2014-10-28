@@ -23,7 +23,7 @@ void drawInvaders(SDL_Renderer *ren,SDL_Texture *tex,Invader invaders[ROWS][COLS
 void invaderShootPewPew(SDL_Renderer *ren, SDL_Texture *tex, SDL_Rect *invaderProjectile);
 
 void moveSpaceShip(SDL_Rect *spaceShip, int moveDir);
-void drawSpaceShip(SDL_Renderer *ren, SDL_Texture *sStexture, SDL_Rect spaceShip);
+void drawSpaceShip(SDL_Renderer *ren, SDL_Texture *sStexture, SDL_Rect *spaceShip, int *playerDead, char lives[1], int *gameover);
 void wooAlien(SDL_Renderer *ren, SDL_Texture *tex, Invader *alien, int direction, Mix_Chunk *ufosound);
 
 void shootPewPew(SDL_Renderer *ren, SDL_Rect *projectile);
@@ -33,6 +33,8 @@ void playSound(Mix_Chunk *sound, int chanToPlay, int loops);
 void playMusic(int gameSpeed, Mix_Chunk *music[4]);
 
 SDL_Texture *updateScoreTex(TTF_Font *font, SDL_Renderer *ren, int *score, int alienType);
+SDL_Texture *updateLivesTex(TTF_Font *font, SDL_Renderer *ren, char lives[1]);
+void renderLives(SDL_Renderer *ren, SDL_Texture *tex, char lives[1]);
 
 
 int main()
@@ -59,6 +61,12 @@ int main()
   infoLine.w = WIDTH;
   infoLine.h = 5;
 
+  SDL_Rect bottomLine;
+  bottomLine.x = 0;
+  bottomLine.y = HEIGHT-30;
+  bottomLine.w = WIDTH;
+  bottomLine.h = 3;
+
   // Initializing the spaceship "holder" and position
   SDL_Rect spaceShip;
   spaceShip.x = (WIDTH-SPRITEWIDTH)/2;
@@ -79,6 +87,12 @@ int main()
 
   SDL_Rect invaderProjectile[COLS];
 
+  SDL_Rect screen;
+  screen.x = 0;
+  screen.y = 0;
+  screen.w = WIDTH;
+  screen.h = HEIGHT;
+
   // Some variables used all around
   int gameSpeed = 1;
   int projectileActive = 0;
@@ -88,6 +102,9 @@ int main()
   int quit=0;
   int actInvaderInRow[COLS];
   int invaderProjectileActive[COLS];
+  int gameover = 0;
+  int loadNewScreen = 1;
+  int playerDead = 0;
 
   for(int i = 0; i < COLS; ++i)
   {
@@ -100,18 +117,27 @@ int main()
 
 
   // Initializing the stuff for the infobox
-
   SDL_Rect scoreHolder;
   scoreHolder.x = 5;
   scoreHolder.y = INFOBOXHEIGHT/2 - FONTSIZE/2;
   scoreHolder.w = 0;
   scoreHolder.h = 0;
 
+  SDL_Rect livesHolder;
+  livesHolder.x = 5;
+  livesHolder.y = bottomLine.y + FONTSIZE/2;
+  livesHolder.w = 0;
+  livesHolder.h = 0;
+
   int score = 0;
   // Making it possible for the variable to be passed to a string that'll be used for the drawing of the text
   char thescore[17];
   memset(thescore, 0, 17);
   sprintf(thescore, "Score: %04i", score);
+
+  char lives[2];
+  memset(lives, 0, 2);
+  sprintf(lives, "3");
 
   // Initialize TTF
   if(TTF_Init() == -1)
@@ -209,43 +235,38 @@ int main()
   // free the image
   SDL_FreeSurface(image);
 
-
-  // Loading the texture for the spaceship
-  SDL_Surface *sShip;
-  sShip=IMG_Load("Ship.png");
-  if(!sShip)
-  {
-    printf("IMG_Load: %s\n", IMG_GetError());
-    return EXIT_FAILURE;
-  }
-
-  SDL_Texture *sStexture = 0;
-  sStexture = SDL_CreateTextureFromSurface(ren, sShip);
-
-  SDL_FreeSurface(sShip);
-
   // Initialize the score stuff
-  SDL_Texture *textTexture;
+  SDL_Texture *scoreTexture;
   SDL_Color fontColor = {255, 255, 255, 255};
 
   SDL_Surface *text = TTF_RenderText_Solid(font, thescore, fontColor);
 
-  textTexture = SDL_CreateTextureFromSurface(ren, text);
+  scoreTexture = SDL_CreateTextureFromSurface(ren, text);
   SDL_FreeSurface(text);
-  SDL_QueryTexture(textTexture, NULL, NULL, &scoreHolder.w, &scoreHolder.h);
+  SDL_QueryTexture(scoreTexture, NULL, NULL, &scoreHolder.w, &scoreHolder.h);
+
+  // Initialize lives rendering
+  SDL_Texture *livesTexture;
+
+  SDL_Surface *textLives = TTF_RenderText_Solid(font, lives, fontColor);
+
+  livesTexture = SDL_CreateTextureFromSurface(ren, textLives);
+  SDL_FreeSurface(textLives);
+  SDL_QueryTexture(livesTexture, NULL, NULL, &livesHolder.w, &livesHolder.h);
+
 
   // now we are going to loop forever, process the keys then draw
 
-  while (quit !=1)
+  while (quit !=1 && !gameover)
   {
 
     // Checking if LEFT or RIGHT key (optionally A or D) is pressed and running the moveSpaceShip function accordingly.
     // Using the SDL_GetKeyboardState instead so the movement doesn't stop when pressing another key.
-    if(keystate[SDL_SCANCODE_LEFT] || keystate[SDL_SCANCODE_A])
+    if((keystate[SDL_SCANCODE_LEFT] || keystate[SDL_SCANCODE_A]) && !playerDead)
     {
       moveSpaceShip(&spaceShip, LEFT);
     }
-    if(keystate[SDL_SCANCODE_RIGHT] || keystate[SDL_SCANCODE_D])
+    if((keystate[SDL_SCANCODE_RIGHT] || keystate[SDL_SCANCODE_D]) && !playerDead)
     {
       moveSpaceShip(&spaceShip, RIGHT);
     }
@@ -270,7 +291,7 @@ int main()
         case SDLK_SPACE :
         {
           // Checking if a projectile already exists (is shot and still flying) as we restrict the amount of simultanious projectiles to one.
-          if(!projectileActive)
+          if(!projectileActive && !playerDead)
           {
             // If no projectile exists, registers the current x and y position of the spaceship,
             // to get the coordinates from where the projectile should launch
@@ -333,7 +354,7 @@ int main()
           // to 3 which equals to the explosion "animation", the actual destroyal of the object happens later when the explosion is complete.
           projectileActive = 0;
           invaders[r][c].frame = 3;
-          textTexture = updateScoreTex(font, ren, &score, invaders[r][c].type);
+          scoreTexture = updateScoreTex(font, ren, &score, invaders[r][c].type);
           //playSound(invaderkilled, 2, 0);
         }
 
@@ -354,7 +375,7 @@ int main()
       alien.frame = 1;
       Mix_Pause(4);
       projectileActive = 0;
-      textTexture = updateScoreTex(font, ren, &score, 9);
+      scoreTexture = updateScoreTex(font, ren, &score, 9);
       //playSound(invaderkilled, 2, 0);
     }
 
@@ -366,11 +387,6 @@ int main()
     // If yes, pass the needed stuff to a function handling the explosion
     explodeProjectile(ren, &projectileBoom, tex, &explodeP);
   }
-
-  // Running the stuff that handles invader movement, drawing/rendering and spaceship rendering
-  updateInvaders(invaders, &gameSpeed, &currentFrame, actInvaderInRow);
-  drawInvaders(ren,tex,invaders, currentFrame);
-  drawSpaceShip(ren, sStexture, spaceShip);
 
   // Set the a new seed for the random stuff every second, i.e. something random can occur only every second instead of every frame
   srand(time(NULL));
@@ -419,11 +435,11 @@ int main()
       invaderShootPewPew(ren, tex, &invaderProjectile[i]);
 
       // Checks if the projectile has passed the screen and destroys it
-      if(invaderProjectile[i].y > HEIGHT)
+      if(invaderProjectile[i].y > bottomLine.y-invaderProjectile[i].h)
         invaderProjectileActive[i] = 0;
 
       /* DEPRECATED, found the SDL_HasIntersection function
-       * if((spaceShip.x              <= invaderProjectile[i].x  ||
+       * if((spaceShip.x           <= invaderProjectile[i].x ||
           spaceShip.x              <= invaderProjectile[i].x+invaderProjectile[i].w) &&
          (spaceShip.x+spaceShip.w  >= invaderProjectile[i].x ||
           spaceShip.x+spaceShip.w  >= invaderProjectile[i].x+invaderProjectile[i].w) &&
@@ -433,10 +449,12 @@ int main()
           spaceShip.y+spaceShip.h  >= invaderProjectile[i].y+invaderProjectile[i].h))*/
 
       // Checks if the projectile hits the player and destroys the projectile
-      if(SDL_HasIntersection(&spaceShip, &invaderProjectile[i]))
+      if(SDL_HasIntersection(&spaceShip, &invaderProjectile[i]) && !playerDead)
       {
         printf("BOOM you're dead\n");
         invaderProjectileActive[i] = 0;
+        playerDead = 1;
+        livesTexture = updateLivesTex(font, ren, lives);
       }
     }
   }
@@ -447,12 +465,24 @@ int main()
     wooAlien(ren, tex, &alien, direction, ufo_lowpitch);
   }
 
+  // Running the stuff that handles invader movement, drawing/rendering and spaceship rendering
+  updateInvaders(invaders, &gameSpeed, &currentFrame, actInvaderInRow);
+  drawInvaders(ren, tex, invaders, currentFrame);
+
+  if(playerDead != 2)
+    drawSpaceShip(ren, tex, &spaceShip, &playerDead, lives, &gameover);
+
   // Draw a line to separate the info bar from the field
   SDL_SetRenderDrawColor(ren, 255, 255, 255, 255);
   SDL_RenderFillRect(ren, &infoLine);
 
+  SDL_SetRenderDrawColor(ren, 35, 255, 0, 255);
+  SDL_RenderFillRect(ren, &bottomLine);
+
   // Render the score
-  SDL_RenderCopy(ren, textTexture, NULL, &scoreHolder);
+  SDL_RenderCopy(ren, scoreTexture, NULL, &scoreHolder);
+  SDL_RenderCopy(ren, livesTexture, NULL, &livesHolder);
+  renderLives(ren, tex, lives);
 
   // Loop and run the background music based on the current gamespeed
   //playMusic(gameSpeed, music);
@@ -462,6 +492,39 @@ int main()
 
   SDL_RenderPresent(ren);
 
+  }
+
+  while(gameover)
+  {
+    SDL_Event event;
+    // grab the SDL even (this will be keys etc)
+    while (SDL_PollEvent(&event))
+    {
+      // look for the x of the window being clicked and exit
+      if (event.type == SDL_QUIT)
+        gameover = 0;
+      // check for a key down
+      if (event.type == SDL_KEYDOWN)
+      {
+        switch (event.key.keysym.sym)
+        {
+
+        // if we have an escape quit
+        case SDLK_ESCAPE : gameover = 0; break;
+        }
+      }
+    }
+
+    if(loadNewScreen <= 50)
+      ++loadNewScreen;
+
+    if(loadNewScreen > 50)
+    {
+      SDL_SetRenderDrawColor(ren, 0, 0, 0, 255);
+      SDL_RenderClear(ren);
+    }
+
+    SDL_RenderPresent(ren);
   }
 
   Mix_FreeChunk(music[0]);
@@ -512,15 +575,65 @@ void moveSpaceShip(SDL_Rect *spaceShip, int moveDir)
   }
 }
 
-void drawSpaceShip(SDL_Renderer *ren, SDL_Texture *sStexture, SDL_Rect spaceShip)
+void drawSpaceShip(SDL_Renderer *ren, SDL_Texture *tex, SDL_Rect *spaceShip, int *playerDead, char *lives, int *gameover)
 {
   SDL_Rect sS_sprite;
-  sS_sprite.x = 0;
-  sS_sprite.y = 0;
-  sS_sprite.w = 73;
-  sS_sprite.h = 52;
+  static int destroySequence = 0;
+  static int explosionSpriteTime = 0;
+  SDL_RendererFlip flip = SDL_FLIP_NONE;
 
-  SDL_RenderCopy(ren, sStexture, &sS_sprite, &spaceShip);
+  if(!*playerDead)
+  {
+    sS_sprite.x = 131;
+    sS_sprite.y = 623;
+    sS_sprite.w = 73;
+    sS_sprite.h = 52;
+  }
+  else
+  {
+    if(destroySequence%10 == 0)
+    {
+      ++explosionSpriteTime;
+      if(explosionSpriteTime%2 == 0)
+        explosionSpriteTime = 0;
+
+    }
+    if(explosionSpriteTime)
+    {
+      sS_sprite.x=340;
+      sS_sprite.y=616;
+      sS_sprite.w=95;
+      sS_sprite.h=59;
+    }
+    else
+    {
+      sS_sprite.x = 218;
+      sS_sprite.y = 616;
+      sS_sprite.w = 105;
+      sS_sprite.h = 61;
+      flip = SDL_FLIP_VERTICAL;
+    }
+    destroySequence += 1;
+  }
+
+  if(destroySequence == 50)
+  {
+    destroySequence = 0;
+    // As lives is a char, the comparison happens in ASCII values, thus we'll be creating a variable that holds the ascii value of 1
+    int life = '0';
+    if(lives[0] > life)
+    {
+      *playerDead = 0;
+      spaceShip->x = (WIDTH-SPRITEWIDTH)/2;
+    }
+    else
+    {
+      *playerDead = 2;
+      *gameover = 1;
+    }
+  }
+
+  SDL_RenderCopyEx(ren, tex, &sS_sprite, spaceShip, 0.0, NULL, flip);
 }
 
 void shootPewPew(SDL_Renderer *ren, SDL_Rect *projectile)
@@ -831,6 +944,42 @@ SDL_Texture *updateScoreTex(TTF_Font *font, SDL_Renderer *ren, int *score, int a
 
     // Return the texture to be used later in the rendering of it
     return textureToRet;
+}
+
+SDL_Texture *updateLivesTex(TTF_Font *font, SDL_Renderer *ren, char lives[1])
+{
+    --lives[0];
+
+    // Stuff that will be used to create the texture
+    SDL_Color fontColor = {255, 255, 255, 255};
+    SDL_Surface *text = TTF_RenderText_Solid(font, lives, fontColor);
+    SDL_Texture *textureToRet = SDL_CreateTextureFromSurface(ren, text);
+
+    // Freeing the surface
+    SDL_FreeSurface(text);
+
+    // Return the texture to be used later in the rendering of it
+    return textureToRet;
+}
+
+void renderLives(SDL_Renderer *ren, SDL_Texture *tex, char lives[1])
+{
+  SDL_Rect livesSprite;
+  livesSprite.x = 131;
+  livesSprite.y = 623;
+  livesSprite.w = 73;
+  livesSprite.h = 52;
+
+  SDL_Rect livesTextHolder;
+  livesTextHolder.w = SPRITEWIDTH;
+  livesTextHolder.h = 20;
+  livesTextHolder.y = HEIGHT-25;
+
+  for(int i = '1'; i < lives[0]; ++i)
+  {
+    livesTextHolder.x = 25 * ((i%49)+1)+((i%49)*15);
+    SDL_RenderCopy(ren, tex, &livesSprite, &livesTextHolder);
+  }
 }
 
 void playSound(Mix_Chunk *sound, int chanToPlay, int loops)
