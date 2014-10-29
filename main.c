@@ -32,9 +32,9 @@ void explodeProjectile(SDL_Renderer *ren, SDL_Rect *projectileBoom, SDL_Texture 
 void playSound(Mix_Chunk *sound, int chanToPlay, int loops);
 void playMusic(int gameSpeed, Mix_Chunk *music[4]);
 
-SDL_Texture *updateScoreTex(TTF_Font *font, SDL_Renderer *ren, int *score, int alienType);
-SDL_Texture *updateLivesTex(TTF_Font *font, SDL_Renderer *ren, char lives[1]);
-void renderLives(SDL_Renderer *ren, SDL_Texture *tex, char lives[1]);
+void renderLives(SDL_Renderer *ren, SDL_Texture *tex, char *lives);
+
+SDL_Texture *textureFromText(SDL_Renderer *ren, TTF_Font *font, char *textToRender);
 
 
 int main()
@@ -117,6 +117,7 @@ int main()
     invaderProjectile[i].w = 6;
     invaderProjectile[i].h = 18;
     invaderProjectileActive[i] = 0;
+    actInvaderInRow[i] = 0;
   }
 
 
@@ -135,9 +136,9 @@ int main()
 
   int score = 0;
   // Making it possible for the variable to be passed to a string that'll be used for the drawing of the text
-  char thescore[17];
-  memset(thescore, 0, 17);
+  char thescore[12] = {0};
   sprintf(thescore, "Score: %04i", score);
+
 
   char lives[] = "3";
 
@@ -240,21 +241,13 @@ int main()
 
   // Initialize the score stuff
   SDL_Texture *scoreTexture;
-  SDL_Color fontColor = {255, 255, 255, 255};
 
-  SDL_Surface *text = TTF_RenderText_Solid(font, thescore, fontColor);
-
-  scoreTexture = SDL_CreateTextureFromSurface(ren, text);
-  SDL_FreeSurface(text);
+  scoreTexture = textureFromText(ren, font, thescore);
   SDL_QueryTexture(scoreTexture, NULL, NULL, &scoreHolder.w, &scoreHolder.h);
 
   // Initialize lives rendering
   SDL_Texture *livesTexture;
-
-  SDL_Surface *textLives = TTF_RenderText_Solid(font, lives, fontColor);
-
-  livesTexture = SDL_CreateTextureFromSurface(ren, textLives);
-  SDL_FreeSurface(textLives);
+  livesTexture = textureFromText(ren, font, lives);
   SDL_QueryTexture(livesTexture, NULL, NULL, &livesHolder.w, &livesHolder.h);
 
 
@@ -268,14 +261,9 @@ int main()
   SDL_Texture *anykeyTexture;
 
   TTF_Font* gofont = TTF_OpenFont("fonts/space_invaders.ttf", FONTSIZE*3);
-  SDL_Surface *textGameover = TTF_RenderText_Solid(gofont, thegameover, fontColor);
-  SDL_Surface *textAnykey = TTF_RenderText_Solid(font, pressanykey, fontColor);
 
-  gameoverTexture = SDL_CreateTextureFromSurface(ren, textGameover);
-  anykeyTexture = SDL_CreateTextureFromSurface(ren, textAnykey);
-
-  SDL_FreeSurface(textGameover);
-  SDL_FreeSurface(textAnykey);
+  gameoverTexture = textureFromText(ren, gofont, thegameover);
+  anykeyTexture = textureFromText(ren, font, pressanykey);
 
   SDL_QueryTexture(gameoverTexture, NULL, NULL, &gameoverHolder.w, &gameoverHolder.h);
   SDL_QueryTexture(anykeyTexture, NULL, NULL, &anykeyHolder.w, &anykeyHolder.h);
@@ -410,7 +398,9 @@ int main()
           // to 3 which equals to the explosion "animation", the actual destroyal of the object happens later when the explosion is complete.
           projectileActive = 0;
           invaders[r][c].frame = 3;
-          scoreTexture = updateScoreTex(font, ren, &score, invaders[r][c].type);
+          score += 10*(invaders[r][c].type+1);
+          sprintf(thescore, "Score: %04i", score);
+          scoreTexture = textureFromText(ren, font, thescore);
           //playSound(invaderkilled, 2, 0);
         }
 
@@ -431,7 +421,9 @@ int main()
       alien.frame = 1;
       Mix_Pause(4);
       projectileActive = 0;
-      scoreTexture = updateScoreTex(font, ren, &score, 9);
+      score += 10*(alien.type+1);
+      sprintf(thescore, "Score: %04i", score);
+      scoreTexture = textureFromText(ren, font, thescore);
       //playSound(invaderkilled, 2, 0);
     }
 
@@ -510,7 +502,8 @@ int main()
         //printf("BOOM you're dead\n");
         invaderProjectileActive[i] = 0;
         playerDead = 1;
-        livesTexture = updateLivesTex(font, ren, lives);
+        --lives[0];
+        livesTexture = textureFromText(ren, font, lives);
       }
     }
   }
@@ -959,65 +952,7 @@ void updateInvaders(Invader invaders[ROWS][COLS], int *gameSpeed, int *currentFr
   }
 }
 
-/* DEPRECATED
-void renderSomeText(TTF_Font *font, SDL_Renderer *ren, char textToRender[17], SDL_Rect *textHolder)
-{
-  SDL_Texture *textTexture;
-  SDL_Color fontColor = {255, 255, 255, 255};
-
-  SDL_Surface *text = TTF_RenderText_Solid(font, textToRender, fontColor);
-  textTexture = SDL_CreateTextureFromSurface(ren, text);
-  SDL_QueryTexture(textTexture, NULL, NULL, &textHolder->w, &textHolder->h);
-
-  SDL_RenderCopy(ren, textTexture, NULL, textHolder);
-  SDL_FreeSurface(text);
-  SDL_DestroyTexture(textTexture);
-}
-
-void updateScore(int *score, int alienType, char thescore[17])
-{
-    *score += 10*(alienType+1);
-    sprintf(thescore, "Score: %04i", *score);
-}*/
-
-SDL_Texture *updateScoreTex(TTF_Font *font, SDL_Renderer *ren, int *score, int alienType)
-{
-    // Making a variable which will contain the score and "Score: "-text
-    char thescore[17];
-    memset(thescore, 0, 17);
-    // Updating the score depending on the alien type
-    *score += 10*(alienType+1);
-    sprintf(thescore, "Score: %04i", *score);
-
-    // Stuff that will be used to create the texture
-    SDL_Color fontColor = {255, 255, 255, 255};
-    SDL_Surface *text = TTF_RenderText_Solid(font, thescore, fontColor);
-    SDL_Texture *textureToRet = SDL_CreateTextureFromSurface(ren, text);
-
-    // Freeing the surface
-    SDL_FreeSurface(text);
-
-    // Return the texture to be used later in the rendering of it
-    return textureToRet;
-}
-
-SDL_Texture *updateLivesTex(TTF_Font *font, SDL_Renderer *ren, char lives[1])
-{
-    --lives[0];
-
-    // Stuff that will be used to create the texture
-    SDL_Color fontColor = {255, 255, 255, 255};
-    SDL_Surface *text = TTF_RenderText_Solid(font, lives, fontColor);
-    SDL_Texture *textureToRet = SDL_CreateTextureFromSurface(ren, text);
-
-    // Freeing the surface
-    SDL_FreeSurface(text);
-
-    // Return the texture to be used later in the rendering of it
-    return textureToRet;
-}
-
-void renderLives(SDL_Renderer *ren, SDL_Texture *tex, char lives[1])
+void renderLives(SDL_Renderer *ren, SDL_Texture *tex, char *lives)
 {
   SDL_Rect livesSprite;
   livesSprite.x = 131;
@@ -1158,4 +1093,17 @@ void playMusic(int gameSpeed, Mix_Chunk *music[4])
         }
     }
 
+}
+
+SDL_Texture *textureFromText(SDL_Renderer *ren, TTF_Font *font, char *textToRender)
+{
+  SDL_Texture *texture;
+  SDL_Color fontColor = {255, 255, 255, 255};
+
+  SDL_Surface *textureSurface = TTF_RenderText_Solid(font, textToRender, fontColor);
+
+  texture = SDL_CreateTextureFromSurface(ren, textureSurface);
+  SDL_FreeSurface(textureSurface);
+
+  return texture;
 }
