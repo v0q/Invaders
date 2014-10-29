@@ -39,6 +39,10 @@ SDL_Texture *textureFromText(SDL_Renderer *ren, TTF_Font *font, char *textToRend
 
 int main()
 {
+
+// -----------------------------------------------------------
+// --------------- INITIALIZING STUFF START ------------------
+// -----------------------------------------------------------
   Invader invaders[ROWS][COLS];
   initializeInvaders(invaders);
 
@@ -180,6 +184,7 @@ int main()
   Mix_Chunk *shoot = NULL;
   Mix_Chunk *invaderkilled = NULL;
   Mix_Chunk *ufo_lowpitch = NULL;
+  Mix_Chunk *explosion = NULL;
 
   music[0] = Mix_LoadWAV("sounds/fastinvader1.wav");
   music[1] = Mix_LoadWAV("sounds/fastinvader2.wav");
@@ -188,6 +193,7 @@ int main()
   shoot = Mix_LoadWAV("sounds/shoot.wav");
   invaderkilled = Mix_LoadWAV("sounds/invaderkilled.wav");
   ufo_lowpitch = Mix_LoadWAV("sounds/ufo_lowpitch.wav");
+  explosion = Mix_LoadWAV("sounds/explosion.wav");
 
   if((music[0] == NULL) ||
      (music[1] == NULL) ||
@@ -195,7 +201,8 @@ int main()
      (music[3] == NULL) ||
      (shoot == NULL) ||
      (invaderkilled == NULL) ||
-     (ufo_lowpitch == NULL)) {
+     (ufo_lowpitch == NULL) ||
+     (explosion == NULL)) {
       fprintf(stderr, "Unable to load WAV file: %s\n", Mix_GetError());
   }
 
@@ -252,27 +259,35 @@ int main()
 
 
 
-  // GAME OVER & Press Any Key
-
+  // Initializing the rect holders for game over and press any key textures
   SDL_Rect gameoverHolder;
   SDL_Rect anykeyHolder;
 
+  // Initializing the textures
   SDL_Texture *gameoverTexture;
   SDL_Texture *anykeyTexture;
 
+  // Making a font with bigger font size for the game over texture
   TTF_Font* gofont = TTF_OpenFont("fonts/space_invaders.ttf", FONTSIZE*3);
 
+  // Creating the textures by passing the required data to the function that creates textures from text
   gameoverTexture = textureFromText(ren, gofont, thegameover);
   anykeyTexture = textureFromText(ren, font, pressanykey);
 
+  // Getting the width and height for the rect holders from the texture
   SDL_QueryTexture(gameoverTexture, NULL, NULL, &gameoverHolder.w, &gameoverHolder.h);
   SDL_QueryTexture(anykeyTexture, NULL, NULL, &anykeyHolder.w, &anykeyHolder.h);
 
+  // Setting the physical position for the holders
   gameoverHolder.x = (WIDTH-gameoverHolder.w)/2;
   gameoverHolder.y = (HEIGHT-gameoverHolder.h)/2;
 
   anykeyHolder.x = (WIDTH-anykeyHolder.w)/2;
   anykeyHolder.y = (HEIGHT-gameoverHolder.h)/2;
+
+// ---------------------------------------------------------
+// --------------- INITIALIZING STUFF END ------------------
+// ---------------------------------------------------------
 
 
 
@@ -345,7 +360,7 @@ int main()
             // Now that the projectile is about to shoot, change the projectileActive to true to prevent more projectiles to be shot
             // at the same time
             projectileActive = 1;
-            //playSound(shoot, 3, 0);
+            playSound(shoot, 3, 0);
           }
           break;
         }
@@ -401,7 +416,7 @@ int main()
           score += 10*(invaders[r][c].type+1);
           sprintf(thescore, "Score: %04i", score);
           scoreTexture = textureFromText(ren, font, thescore);
-          //playSound(invaderkilled, 2, 0);
+          playSound(invaderkilled, 2, 0);
         }
 
       }
@@ -424,7 +439,7 @@ int main()
       score += 10*(alien.type+1);
       sprintf(thescore, "Score: %04i", score);
       scoreTexture = textureFromText(ren, font, thescore);
-      //playSound(invaderkilled, 2, 0);
+      playSound(invaderkilled, 2, 0);
     }
 
   }
@@ -504,6 +519,7 @@ int main()
         playerDead = 1;
         --lives[0];
         livesTexture = textureFromText(ren, font, lives);
+        playSound(explosion, 4, 0);
       }
     }
   }
@@ -534,7 +550,7 @@ int main()
   renderLives(ren, tex, lives);
 
   // Loop and run the background music based on the current gamespeed
-  //playMusic(gameSpeed, music);
+  playMusic(gameSpeed, music);
 
   // Up until now everything was drawn behind the scenes.
   // This will show the new, red contents of the window.
@@ -937,17 +953,15 @@ void updateInvaders(Invader invaders[ROWS][COLS], int *gameSpeed, int *currentFr
 
       invaders[r][c].pos.y += yinc;
 
+    }
+  }
+  for(int c = 0; c < COLS; ++c)
+  {
+    actInvaderInRow[c] = 0;
+    for(int r = 0; r < ROWS; ++r)
+    {
       if(invaders[r][c].active)
-      {
         actInvaderInRow[c] = r+1;
-      }
-
-      if(actInvaderInRow[c] == 1 && !invaders[0][c].active)
-      {
-        actInvaderInRow[c] = 0;
-      }
-
-
     }
   }
 }
@@ -1021,7 +1035,7 @@ void wooAlien(SDL_Renderer *ren, SDL_Texture *tex, Invader *alien, int direction
     else
         alien->pos.x -= 4;
     // While alien is active play the ufo sound
-    //playSound(ufosound, 4, -1);
+    playSound(ufosound, 4, -1);
 
     // Checks if the ufo passed the screen and make it not active and stop the sound
     if(alien->pos.x < -alien->pos.w || alien->pos.x > WIDTH+alien->pos.w)
