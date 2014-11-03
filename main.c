@@ -13,7 +13,7 @@
 #define ANIMATIONSEQUENCELENGTH 800
 #define INFOBOXHEIGHT 40
 #define FONTSIZE 16
-#define PROJECTILESPEED 8
+#define PROJECTILESPEED 12
 
 enum DIRECTION{LEFT,RIGHT};
 
@@ -583,7 +583,7 @@ int main()
         if(SDL_HasIntersection(&invaderProjectile[i], &shields[s]))
         {
           colX = (invaderProjectile[i].x - shields[s].x) / (shields[s].w/testSurface[s]->w);
-          colY = (invaderProjectile[i].y+(PROJECTILESPEED/5) - shields[s].y) / (shields[s].h/testSurface[s]->h);
+          colY = (invaderProjectile[i].y - shields[s].y) / (shields[s].h/testSurface[s]->h);
           if(pixelActive(testSurface[s], colX, colY) == 0x0000FF00)
           {
             invaderProjectileActive[i] = 0;
@@ -787,7 +787,7 @@ void invaderShootPewPew(SDL_Renderer *ren, SDL_Texture *tex, SDL_Rect *invaderPr
   projectileSprite.w = 27;
   projectileSprite.h = 50;
 
-  invaderProjectile->y += PROJECTILESPEED;
+  invaderProjectile->y += 6;
 
   SDL_RenderCopy(ren, tex, &projectileSprite, invaderProjectile);
 }
@@ -975,8 +975,8 @@ void updateInvaders(Invader invaders[ROWS][COLS], int *gameSpeed, int *currentFr
   if(invaders[0][actColR].pos.x>=WIDTH-(SPRITEWIDTH*2-SPRITEWIDTH/2))
   {
     DIRECTION=BWD;
-    yinc=GAP;
-    if(updateSpeed%3 == 0 && *gameSpeed < 10)
+    yinc=GAP/2;
+    if(updateSpeed%5 == 0 && *gameSpeed < 10)
     {
       ++*gameSpeed;
       animationFrame = 0;
@@ -987,8 +987,8 @@ void updateInvaders(Invader invaders[ROWS][COLS], int *gameSpeed, int *currentFr
   else if(invaders[0][actColL].pos.x<=SPRITEWIDTH/2)
   {
     DIRECTION=FWD;
-    yinc=GAP;
-    if(updateSpeed%3 == 0 && *gameSpeed < 10)
+    yinc=GAP/2;
+    if(updateSpeed%5 == 0 && *gameSpeed < 10)
     {
       ++*gameSpeed;
       animationFrame = 0;
