@@ -13,6 +13,7 @@
 #define ANIMATIONSEQUENCELENGTH 800
 #define INFOBOXHEIGHT 40
 #define FONTSIZE 16
+#define PROJECTILESPEED 8
 
 enum DIRECTION{LEFT,RIGHT};
 
@@ -35,6 +36,9 @@ void playMusic(int gameSpeed, Mix_Chunk *music[4]);
 void renderLives(SDL_Renderer *ren, SDL_Texture *tex, char *lives);
 
 SDL_Texture *textureFromText(SDL_Renderer *ren, TTF_Font *font, char *textToRender);
+
+void editPixel(SDL_Surface *testSurface, int x, int y, int PlorIn);
+Uint32 pixelActive(SDL_Surface *testSurface, int x, int y);
 
 
 int main()
@@ -97,6 +101,18 @@ int main()
   screen.w = WIDTH;
   screen.h = HEIGHT;
 
+  SDL_Rect shield;
+  shield.w = 88;
+  shield.h = 64;
+  shield.y = bottomLine.y - shield.h*2;
+
+  SDL_Rect shields[4] = {shield, shield, shield, shield};
+
+  for(int i = 0; i < 4; ++i)
+  {
+    shields[i].x = (WIDTH-(shield.w*4))/8 + i*(shield.w+(WIDTH-(shield.w*4))/4);
+  }
+
   // Some variables used all around
   int gameSpeed = 1;
   int projectileActive = 0;
@@ -110,6 +126,8 @@ int main()
   int loadNewScreen = 1;
   int playerDead = 0;
   int startgame = 0;
+  int colX = 0;
+  int colY = 0;
 
   char thegameover[] = "Game Over";
   char pressanykey[] = "Press any key to continue";
@@ -257,6 +275,21 @@ int main()
   livesTexture = textureFromText(ren, font, lives);
   SDL_QueryTexture(livesTexture, NULL, NULL, &livesHolder.w, &livesHolder.h);
 
+  // Initializing shield textures
+  SDL_Surface *testSurface[4];
+  SDL_Texture *textureFromSurface[4];
+
+  for(int i = 0; i < 4; ++i)
+  {
+    testSurface[i] = IMG_Load("shieldTexture.png");
+    if(!testSurface[i])
+    {
+     printf("IMG_Load: %s\n", IMG_GetError());
+     return EXIT_FAILURE;
+    }
+    textureFromSurface[i] = SDL_CreateTextureFromSurface(ren, testSurface[i]);
+  }
+
 
 
   // Initializing the rect holders for game over and press any key textures
@@ -372,6 +405,10 @@ int main()
   SDL_SetRenderDrawColor(ren, 0, 0, 0, 255);
   SDL_RenderClear(ren);
 
+  // Render shields
+  for(int i = 0; i < 4; ++i)
+    SDL_RenderCopy(ren, textureFromSurface[i], NULL, &shields[i]);
+
   // Check if projectile has been shot
   if(projectileActive)
   {
@@ -440,6 +477,26 @@ int main()
       sprintf(thescore, "Score: %04i", score);
       scoreTexture = textureFromText(ren, font, thescore);
       playSound(invaderkilled, 2, 0);
+    }
+
+    // Checks if a shield has been shot
+    for(int i = 0; i < 4; ++i)
+    {
+      for(int pSC = 0; pSC < PROJECTILESPEED; ++pSC)
+      {
+        SDL_Rect pSCprojectile = {projectile.x, projectile.y+pSC, projectile.w, projectile.h};
+        if(SDL_HasIntersection(&pSCprojectile, &shields[i]))
+        {
+          colX = (projectile.x - shields[i].x) / (shields[i].w/testSurface[i]->w);
+          colY = (projectile.y - shields[i].y) / (shields[i].h/testSurface[i]->h);
+          if(pixelActive(testSurface[i], colX, colY) == 0x0000FF00)
+          {
+            projectileActive = 0;
+            editPixel(testSurface[i], colX, colY, 0);
+            textureFromSurface[i] = SDL_CreateTextureFromSurface(ren, testSurface[i]);
+          }
+        }
+      }
     }
 
   }
@@ -520,6 +577,20 @@ int main()
         --lives[0];
         livesTexture = textureFromText(ren, font, lives);
         playSound(explosion, 4, 0);
+      }
+      for(int s = 0; s < 4; ++s)
+      {
+        if(SDL_HasIntersection(&invaderProjectile[i], &shields[s]))
+        {
+          colX = (invaderProjectile[i].x - shields[s].x) / (shields[s].w/testSurface[s]->w);
+          colY = (invaderProjectile[i].y+(PROJECTILESPEED/5) - shields[s].y) / (shields[s].h/testSurface[s]->h);
+          if(pixelActive(testSurface[s], colX, colY) == 0x0000FF00)
+          {
+            invaderProjectileActive[i] = 0;
+            editPixel(testSurface[s], colX, colY, 1);
+            textureFromSurface[s] = SDL_CreateTextureFromSurface(ren, testSurface[s]);
+          }
+        }
       }
     }
   }
@@ -702,7 +773,7 @@ void drawSpaceShip(SDL_Renderer *ren, SDL_Texture *tex, SDL_Rect *spaceShip, int
 
 void shootPewPew(SDL_Renderer *ren, SDL_Rect *projectile)
 {
-  projectile->y -= 16;
+  projectile->y -= PROJECTILESPEED;
 
   SDL_SetRenderDrawColor(ren, 255, 255, 255, 255);
   SDL_RenderFillRect(ren, projectile);
@@ -716,7 +787,7 @@ void invaderShootPewPew(SDL_Renderer *ren, SDL_Texture *tex, SDL_Rect *invaderPr
   projectileSprite.w = 27;
   projectileSprite.h = 50;
 
-  invaderProjectile->y += 4;
+  invaderProjectile->y += PROJECTILESPEED;
 
   SDL_RenderCopy(ren, tex, &projectileSprite, invaderProjectile);
 }
@@ -1006,56 +1077,6 @@ void playSound(Mix_Chunk *sound, int chanToPlay, int loops)
     }
 
 }
-
-void wooAlien(SDL_Renderer *ren, SDL_Texture *tex, Invader *alien, int direction, Mix_Chunk *ufosound)
-{
-  // Set the sprite coordinates for the alien
-  SDL_Rect alien_sprite;
-  alien_sprite.x = 0;
-  alien_sprite.y = 616;
-  alien_sprite.w = 125;
-  alien_sprite.h = 61;
-
-  static int destroySequence = 0;
-
-  // Checks if the alien has been destroyed and if the destroy sequence should be run
-  if(alien->frame == 1)
-  {
-    alien_sprite.x=340;
-    alien_sprite.y=616;
-    alien_sprite.w=95;
-    alien_sprite.h=59;
-    destroySequence += 1;
-  }
-  else
-  {
-    // Checks where the alien should be moving, i.e. if it spawned to the left or the right side of the screen
-    if(direction == 0)
-        alien->pos.x += 4;
-    else
-        alien->pos.x -= 4;
-    // While alien is active play the ufo sound
-    playSound(ufosound, 4, -1);
-
-    // Checks if the ufo passed the screen and make it not active and stop the sound
-    if(alien->pos.x < -alien->pos.w || alien->pos.x > WIDTH+alien->pos.w)
-    {
-        alien->active = 0;
-        Mix_Pause(4);
-    }
-  }
-
-  if(destroySequence == 10)
-  {
-    destroySequence = 0;
-    alien->active = 0;
-    alien->frame = 0;
-  }
-
-  // Render the ufo
-  SDL_RenderCopy(ren, tex, &alien_sprite, &alien->pos);
-}
-
 void playMusic(int gameSpeed, Mix_Chunk *music[4])
 {
     static int currentSound = 3;
@@ -1109,6 +1130,55 @@ void playMusic(int gameSpeed, Mix_Chunk *music[4])
 
 }
 
+void wooAlien(SDL_Renderer *ren, SDL_Texture *tex, Invader *alien, int direction, Mix_Chunk *ufosound)
+{
+  // Set the sprite coordinates for the alien
+  SDL_Rect alien_sprite;
+  alien_sprite.x = 0;
+  alien_sprite.y = 616;
+  alien_sprite.w = 125;
+  alien_sprite.h = 61;
+
+  static int destroySequence = 0;
+
+  // Checks if the alien has been destroyed and if the destroy sequence should be run
+  if(alien->frame == 1)
+  {
+    alien_sprite.x=340;
+    alien_sprite.y=616;
+    alien_sprite.w=95;
+    alien_sprite.h=59;
+    destroySequence += 1;
+  }
+  else
+  {
+    // Checks where the alien should be moving, i.e. if it spawned to the left or the right side of the screen
+    if(direction == 0)
+        alien->pos.x += 4;
+    else
+        alien->pos.x -= 4;
+    // While alien is active play the ufo sound
+    playSound(ufosound, 4, -1);
+
+    // Checks if the ufo passed the screen and make it not active and stop the sound
+    if(alien->pos.x < -alien->pos.w || alien->pos.x > WIDTH+alien->pos.w)
+    {
+        alien->active = 0;
+        Mix_Pause(4);
+    }
+  }
+
+  if(destroySequence == 10)
+  {
+    destroySequence = 0;
+    alien->active = 0;
+    alien->frame = 0;
+  }
+
+  // Render the ufo
+  SDL_RenderCopy(ren, tex, &alien_sprite, &alien->pos);
+}
+
 SDL_Texture *textureFromText(SDL_Renderer *ren, TTF_Font *font, char *textToRender)
 {
   SDL_Texture *texture;
@@ -1120,4 +1190,80 @@ SDL_Texture *textureFromText(SDL_Renderer *ren, TTF_Font *font, char *textToRend
   SDL_FreeSurface(textureSurface);
 
   return texture;
+}
+
+void editPixel(SDL_Surface *testSurface, int x, int y, int PlorIn)
+{
+  Uint8 *index;
+  Uint32 *colour;
+  int randomPattern = rand()%3;
+  index = (Uint8 *)testSurface->pixels;
+
+  switch(PlorIn)
+  {
+    case 0:
+    {
+      for(int r = 0; r < 12; ++r)
+      {
+        if((y-r) >= 0)
+        {
+          for(int c = 0; c < 6; ++c)
+          {
+            if((x+(c-3)) >= 0 && (x+(c-3)) < testSurface->w)
+            {
+              if(explosionPattern[randomPattern][r][c])
+              {
+                colour = (Uint32 *)&index[(testSurface->pitch*(y-r) + testSurface->format->BytesPerPixel*(x+(c-3)))];
+                *colour = 0x00000000;
+              }
+            }
+            else
+              continue;
+          }
+        }
+        else
+        {
+          break;
+        }
+      }
+      break;
+    }
+    case 1:
+    {
+      for(int r = 0; r < 12; ++r)
+      {
+        if((y+r) < testSurface->h)
+        {
+          for(int c = 0; c < 6; ++c)
+          {
+            if((x+(c-3)) >= 0 && (x+(c-3)) < testSurface->w)
+            {
+              if(explosionPattern[randomPattern][r][c])
+              {
+                colour = (Uint32 *)&index[(testSurface->pitch*(y+r) + testSurface->format->BytesPerPixel*(x+(c-3)))];
+                *colour = 0x00000000;
+              }
+            }
+            else
+              continue;
+          }
+        }
+        else
+        {
+          break;
+        }
+      }
+    break;
+    }
+  }
+
+}
+
+Uint32 pixelActive(SDL_Surface *testSurface, int x, int y)
+{
+  Uint8 *index;
+  Uint32 *value;
+  index = (Uint8 *)testSurface->pixels;
+  value = (Uint32 *)&index[(testSurface->pitch*y + testSurface->format->BytesPerPixel*x)];
+  return *value;
 }
