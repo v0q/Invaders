@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include "Invader.h"
+#include "ExplosionPatterns.h"
 // the width of the screen taking into account the maze and block
 #define WIDTH 800
 // the height of the screen taking into account the maze and block

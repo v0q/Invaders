@@ -2,7 +2,8 @@ QT -=gui
 TARGET=Invaders
 DESTDIR=./
 SOURCES+=main.c
-HEADERS+=Invader.h
+HEADERS+=Invader.h \
+    ExplosionPatterns.h
 cache()
 QMAKE_CFLAGS+=-std=c99 -Wall -g
 QMAKE_CFLAGS+=$$system(sdl2-config  --cflags)
