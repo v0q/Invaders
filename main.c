@@ -20,7 +20,7 @@ enum DIRECTION{LEFT,RIGHT};
 
 // Declaring the functions
 void initializeInvaders(Invader invaders[ROWS][COLS]);
-void updateInvaders(Invader invaders[ROWS][COLS], int *gameSpeed, int *currentFrame, int actInvaderInRow[COLS]);
+void updateInvaders(Invader invaders[ROWS][COLS], int *gameSpeed, int *currentFrame, int actInvaderInRow[COLS], int level);
 void drawInvaders(SDL_Renderer *ren,SDL_Texture *tex,Invader invaders[ROWS][COLS], int currentFrame);
 void invaderShootPewPew(SDL_Renderer *ren, SDL_Texture *tex, SDL_Rect *invaderProjectile);
 
@@ -115,6 +115,7 @@ int main()
   }
 
   // Some variables used all around
+  initializeInvaders(invaders);
   int gameSpeed = 1;
   int projectileActive = 0;
   int direction = 0;
@@ -129,6 +130,10 @@ int main()
   int startgame = 0;
   int colX = 0;
   int colY = 0;
+  int newstart = 0;
+  int invaderskilled = 0;
+  int level = 1;
+
 
   char thegameover[] = "Game Over";
   char pressanykey[] = "Press any key to continue";
@@ -157,10 +162,18 @@ int main()
   livesHolder.w = 0;
   livesHolder.h = 0;
 
+  SDL_Rect levelHolder;
+  levelHolder.y = INFOBOXHEIGHT/2 - FONTSIZE/2;
+  levelHolder.w = 0;
+  levelHolder.h = 0;
+
   int score = 0;
   // Making it possible for the variable to be passed to a string that'll be used for the drawing of the text
   char thescore[12] = {0};
   sprintf(thescore, "Score: %04i", score);
+
+  char thelevel[9] = {0};
+  sprintf(thelevel, "Level: %i", level);
 
 
   char lives[] = "3";
@@ -276,6 +289,11 @@ int main()
   livesTexture = textureFromText(ren, font, lives);
   SDL_QueryTexture(livesTexture, NULL, NULL, &livesHolder.w, &livesHolder.h);
 
+  SDL_Texture *levelTexture;
+  levelTexture = textureFromText(ren, font, thelevel);
+  SDL_QueryTexture(levelTexture, NULL, NULL, &levelHolder.w, &levelHolder.h);
+  levelHolder.x = WIDTH-5-levelHolder.w;
+
   // Initializing shield textures
   SDL_Surface *testSurface[4];
   SDL_Texture *textureFromSurface[4];
@@ -353,6 +371,20 @@ int main()
   while (quit !=1 && !gameover)
   {
 
+    if(newstart)
+    {
+      initializeInvaders(invaders);
+      gameSpeed = 1;
+      currentFrame = 0;
+      playerDead = 0;
+      invaderskilled = 0;
+      ++level;
+      sprintf(thelevel, "Level: %i", level);
+      levelTexture = textureFromText(ren, font, thelevel);
+      newstart = 0;
+    }
+
+
     // Checking if LEFT or RIGHT key (optionally A or D) is pressed and running the moveSpaceShip function accordingly.
     // Using the SDL_GetKeyboardState instead so the movement doesn't stop when pressing another key.
     if((keystate[SDL_SCANCODE_LEFT] || keystate[SDL_SCANCODE_A]) && !playerDead)
@@ -429,44 +461,6 @@ int main()
     // Pass the stuff needed to display and move the projectile to the function
     shootPewPew(ren, &projectile);
 
-    // Check if the projectile collides with an invader by running through all the invaders with for loops.
-    for(int r=0; r<ROWS; ++r)
-    {
-      for(int c=0; c<COLS; ++c)
-      {
-
-        /* DEPRECATED, found the SDL_HasIntersection function
-         *     // This is done by checking if the projectiles x-coordinate is between the invaders x-coordinate and x-coordinate + SPRITEWIDTH
-               // and if the projectiles y-coordinate is between the y-coordinate and y-coordinate + SPRITEHEIGHT of an invader
-        if(invaders[r][c].pos.x   <=  projectile.x                      &&
-           projectile.x           <=  invaders[r][c].pos.x+SPRITEWIDTH  &&
-           invaders[r][c].pos.y   <=  projectile.y                      &&
-           projectile.y           <=  invaders[r][c].pos.y+SPRITEHEIGHT &&
-           invaders[r][c].active)*/
-
-        // Check if the projectile collides with any of 'em
-        if(SDL_HasIntersection(&invaders[r][c].pos, &projectile) && invaders[r][c].active)
-        {
-          // If the projectile hits a target, destroy the projectile and change the frame of that specific invader
-          // to 3 which equals to the explosion "animation", the actual destroyal of the object happens later when the explosion is complete.
-          projectileActive = 0;
-          invaders[r][c].frame = 3;
-          score += 10*(invaders[r][c].type+1);
-          sprintf(thescore, "Score: %04i", score);
-          scoreTexture = textureFromText(ren, font, thescore);
-          playSound(invaderkilled, 2, 0);
-        }
-
-      }
-    }
-
-    /* DEPRECATED, found the SDL_HasIntersection function
-    if(alien.pos.x   <=  projectile.x               &&
-       projectile.x  <=  alien.pos.x+alien.pos.w    &&
-       alien.pos.y   <=  projectile.y               &&
-       projectile.y  <=  alien.pos.y+alien.pos.h    &&
-       alien.active)*/
-    // Check if the projectile collides with the alien
     if(SDL_HasIntersection(&alien.pos, &projectile) && alien.active)
     {
       // If the projectile hits a target, destroy the projectile and change the frame of that specific invader
@@ -483,13 +477,15 @@ int main()
     // Checks if a shield has been shot
     for(int i = 0; i < 4; ++i)
     {
-      for(int pSC = 0; pSC < PROJECTILESPEED; ++pSC)
+      for(int pSC = 0; pSC < PROJECTILESPEED+projectile.h; ++pSC)
       {
+        SDL_Rect collision;
         SDL_Rect pSCprojectile = {projectile.x, projectile.y+pSC, projectile.w, projectile.h};
         if(SDL_HasIntersection(&pSCprojectile, &shields[i]))
         {
-          colX = (projectile.x - shields[i].x) / (shields[i].w/testSurface[i]->w);
-          colY = (projectile.y - shields[i].y) / (shields[i].h/testSurface[i]->h);
+          SDL_IntersectRect(&pSCprojectile, &shields[i], &collision);
+          colX = (collision.x - shields[i].x) / (shields[i].w/testSurface[i]->w);
+          colY = (collision.y - shields[i].y) / (shields[i].h/testSurface[i]->h);
           if(pixelActive(testSurface[i], colX, colY) == 0x0000FF00)
           {
             projectileActive = 0;
@@ -500,6 +496,37 @@ int main()
       }
     }
 
+  }
+
+  // Loop through the invaders to check various things
+  for(int r=0; r<ROWS; ++r)
+  {
+    for(int c=0; c<COLS; ++c)
+    {
+      if(projectileActive)
+      {
+        // Check if the projectile collides with any of 'em
+        if(SDL_HasIntersection(&invaders[r][c].pos, &projectile) && invaders[r][c].active)
+        {
+          // If the projectile hits a target, destroy the projectile and change the frame of that specific invader
+          // to 3 which equals to the explosion "animation", the actual destroyal of the object happens later when the explosion is complete.
+          projectileActive = 0;
+          invaders[r][c].frame = 3;
+          score += 10*(invaders[r][c].type+1);
+          sprintf(thescore, "Score: %04i", score);
+          scoreTexture = textureFromText(ren, font, thescore);
+          playSound(invaderkilled, 2, 0);
+          ++invaderskilled;
+        }
+      }
+
+      // Check if an invader hits the player or reaches the ground => game over
+      if((SDL_HasIntersection(&invaders[r][c].pos, &spaceShip) && invaders[r][c].active) ||
+         invaders[r][c].pos.y >= bottomLine.y+SPRITEHEIGHT)
+      {
+        gameover = 1;
+      }
+    }
   }
 
   // Checks if an explosion sequence should be run
@@ -559,16 +586,6 @@ int main()
       if(invaderProjectile[i].y > bottomLine.y-invaderProjectile[i].h)
         invaderProjectileActive[i] = 0;
 
-      /* DEPRECATED, found the SDL_HasIntersection function
-       * if((spaceShip.x           <= invaderProjectile[i].x ||
-          spaceShip.x              <= invaderProjectile[i].x+invaderProjectile[i].w) &&
-         (spaceShip.x+spaceShip.w  >= invaderProjectile[i].x ||
-          spaceShip.x+spaceShip.w  >= invaderProjectile[i].x+invaderProjectile[i].w) &&
-         (spaceShip.y              <= invaderProjectile[i].y ||
-          spaceShip.y              <= invaderProjectile[i].y+invaderProjectile[i].h) &&
-         (spaceShip.y+spaceShip.h  >= invaderProjectile[i].y ||
-          spaceShip.y+spaceShip.h  >= invaderProjectile[i].y+invaderProjectile[i].h))*/
-
       // Checks if the projectile hits the player and destroys the projectile
       if(SDL_HasIntersection(&spaceShip, &invaderProjectile[i]) && !playerDead)
       {
@@ -602,10 +619,16 @@ int main()
     wooAlien(ren, tex, &alien, direction, ufo_lowpitch);
   }
 
+  if(invaderskilled == COLS*ROWS)
+  {
+    newstart = 1;
+  }
+
   // Running the stuff that handles invader movement, drawing/rendering and spaceship rendering
-  updateInvaders(invaders, &gameSpeed, &currentFrame, actInvaderInRow);
+  updateInvaders(invaders, &gameSpeed, &currentFrame, actInvaderInRow, level);
   drawInvaders(ren, tex, invaders, currentFrame);
 
+  // Checks if player still has lives left
   if(playerDead != 2)
     drawSpaceShip(ren, tex, &spaceShip, &playerDead, lives, &gameover);
 
@@ -613,12 +636,14 @@ int main()
   SDL_SetRenderDrawColor(ren, 255, 255, 255, 255);
   SDL_RenderFillRect(ren, &infoLine);
 
+  // Render bottom "separator"
   SDL_SetRenderDrawColor(ren, 35, 255, 0, 255);
   SDL_RenderFillRect(ren, &bottomLine);
 
-  // Render the score
+  // Render score, lives and level
   SDL_RenderCopy(ren, scoreTexture, NULL, &scoreHolder);
   SDL_RenderCopy(ren, livesTexture, NULL, &livesHolder);
+  SDL_RenderCopy(ren, levelTexture, NULL, &levelHolder);
   renderLives(ren, tex, lives);
 
   // Loop and run the background music based on the current gamespeed
@@ -918,7 +943,7 @@ void drawInvaders(SDL_Renderer *ren, SDL_Texture *tex, Invader invaders[ROWS][CO
   }
 }
 
-void updateInvaders(Invader invaders[ROWS][COLS], int *gameSpeed, int *currentFrame, int actInvaderInRow[COLS])
+void updateInvaders(Invader invaders[ROWS][COLS], int *gameSpeed, int *currentFrame, int actInvaderInRow[COLS], int level)
 {
   enum DIR{FWD,BWD};
   static int DIRECTION=FWD;
@@ -928,6 +953,16 @@ void updateInvaders(Invader invaders[ROWS][COLS], int *gameSpeed, int *currentFr
   int stopLoop = 0;
   static int updateSpeed = 1;
   static int animationFrame = 0;
+  int whenToUpdate;
+
+  switch(level)
+  {
+    case 1: whenToUpdate = 8; break;
+    case 2: whenToUpdate = 6; break;
+    case 3: whenToUpdate = 4; break;
+    case 4: whenToUpdate = 2; break;
+    default: whenToUpdate = 1; break;
+  }
 
   // Loop through the column from right to find the active outermost column on right
   for(int c = COLS-1; c >= 0; --c)
@@ -977,10 +1012,11 @@ void updateInvaders(Invader invaders[ROWS][COLS], int *gameSpeed, int *currentFr
   {
     DIRECTION=BWD;
     yinc=GAP/2;
-    if(updateSpeed%5 == 0 && *gameSpeed < 10)
+    if(updateSpeed%whenToUpdate == 0 && *gameSpeed < 10)
     {
       ++*gameSpeed;
       animationFrame = 0;
+      updateSpeed = 0;
     }
     ++updateSpeed;
   }
@@ -989,10 +1025,11 @@ void updateInvaders(Invader invaders[ROWS][COLS], int *gameSpeed, int *currentFr
   {
     DIRECTION=FWD;
     yinc=GAP/2;
-    if(updateSpeed%5 == 0 && *gameSpeed < 10)
+    if(updateSpeed%whenToUpdate == 0 && *gameSpeed < 10)
     {
       ++*gameSpeed;
       animationFrame = 0;
+      updateSpeed = 0;
     }
     ++updateSpeed;
   }
