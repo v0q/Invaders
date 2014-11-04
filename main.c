@@ -38,8 +38,8 @@ void renderLives(SDL_Renderer *ren, SDL_Texture *tex, char *lives);
 
 SDL_Texture *textureFromText(SDL_Renderer *ren, TTF_Font *font, char *textToRender);
 
-void editPixel(SDL_Surface *testSurface, int x, int y, int PlorIn);
-Uint32 pixelActive(SDL_Surface *testSurface, int x, int y);
+void editPixel(SDL_Surface *shieldSurface, int x, int y, int PlorIn);
+Uint32 pixelActive(SDL_Surface *shieldSurface, int x, int y);
 
 
 int main()
@@ -295,18 +295,18 @@ int main()
   levelHolder.x = WIDTH-5-levelHolder.w;
 
   // Initializing shield textures
-  SDL_Surface *testSurface[4];
-  SDL_Texture *textureFromSurface[4];
+  SDL_Surface *shieldSurface[4];
+  SDL_Texture *shieldTexture[4];
 
   for(int i = 0; i < 4; ++i)
   {
-    testSurface[i] = IMG_Load("shieldTexture.png");
-    if(!testSurface[i])
+    shieldSurface[i] = IMG_Load("shieldTexture.png");
+    if(!shieldSurface[i])
     {
      printf("IMG_Load: %s\n", IMG_GetError());
      return EXIT_FAILURE;
     }
-    textureFromSurface[i] = SDL_CreateTextureFromSurface(ren, testSurface[i]);
+    shieldTexture[i] = SDL_CreateTextureFromSurface(ren, shieldSurface[i]);
   }
 
 
@@ -440,7 +440,7 @@ int main()
 
   // Render shields
   for(int i = 0; i < 4; ++i)
-    SDL_RenderCopy(ren, textureFromSurface[i], NULL, &shields[i]);
+    SDL_RenderCopy(ren, shieldTexture[i], NULL, &shields[i]);
 
   // Check if projectile has been shot
   if(projectileActive)
@@ -470,6 +470,8 @@ int main()
       projectileActive = 0;
       score += 10*(alien.type+1);
       sprintf(thescore, "Score: %04i", score);
+      ++lives[0];
+      livesTexture = textureFromText(ren, font, lives);
       scoreTexture = textureFromText(ren, font, thescore);
       playSound(invaderkilled, 2, 0);
     }
@@ -477,20 +479,23 @@ int main()
     // Checks if a shield has been shot
     for(int i = 0; i < 4; ++i)
     {
+      // Compensating for the projectile speed, i.e. the "skips" that it does by moving so fast
       for(int pSC = 0; pSC < PROJECTILESPEED+projectile.h; ++pSC)
       {
+        // Using this compensated "projectile" that's not rendered as the colliding one and store the coordinates in a separate "collision rect"
         SDL_Rect collision;
         SDL_Rect pSCprojectile = {projectile.x, projectile.y+pSC, projectile.w, projectile.h};
         if(SDL_HasIntersection(&pSCprojectile, &shields[i]))
         {
+          // Store the coordinates here and pass on to the function that handles the destruction of the shield, also checks if the part we hit is not destroyed
           SDL_IntersectRect(&pSCprojectile, &shields[i], &collision);
-          colX = (collision.x - shields[i].x) / (shields[i].w/testSurface[i]->w);
-          colY = (collision.y - shields[i].y) / (shields[i].h/testSurface[i]->h);
-          if(pixelActive(testSurface[i], colX, colY) == 0x0000FF00)
+          colX = (collision.x - shields[i].x) / (shields[i].w/shieldSurface[i]->w);
+          colY = (collision.y - shields[i].y) / (shields[i].h/shieldSurface[i]->h);
+          if(pixelActive(shieldSurface[i], colX, colY) == 0x0000FF00)
           {
             projectileActive = 0;
-            editPixel(testSurface[i], colX, colY, 0);
-            textureFromSurface[i] = SDL_CreateTextureFromSurface(ren, testSurface[i]);
+            editPixel(shieldSurface[i], colX, colY, 0);
+            shieldTexture[i] = SDL_CreateTextureFromSurface(ren, shieldSurface[i]);
           }
         }
       }
@@ -555,7 +560,6 @@ int main()
         alien.pos.x = WIDTH + SPRITEWIDTH;
         direction = 1;
     }
-    //printf("Random occurance\n");
   }
 
   // Randomises the event of invaders shooting, gives a 50% chance of a possible invader projectile every second
@@ -586,27 +590,30 @@ int main()
       if(invaderProjectile[i].y > bottomLine.y-invaderProjectile[i].h)
         invaderProjectileActive[i] = 0;
 
-      // Checks if the projectile hits the player and destroys the projectile
+      // Checks if the projectile hits the player and the player is not currently "dead" in an explosion sequence
       if(SDL_HasIntersection(&spaceShip, &invaderProjectile[i]) && !playerDead)
       {
-        //printf("BOOM you're dead\n");
+        // Destroys the projectile, starts the player explosion sequence, decreases the amount of lives and plays the explosion sound
         invaderProjectileActive[i] = 0;
         playerDead = 1;
         --lives[0];
         livesTexture = textureFromText(ren, font, lives);
         playSound(explosion, 4, 0);
       }
+
+      // Loops through the shields and checks if a projectile shot by an invader hits any one of 'em, if so then record the coordinates and check
+      // if that part of the shield is not already destroyed. Continue to the shield destroyal stuff
       for(int s = 0; s < 4; ++s)
       {
         if(SDL_HasIntersection(&invaderProjectile[i], &shields[s]))
         {
-          colX = (invaderProjectile[i].x - shields[s].x) / (shields[s].w/testSurface[s]->w);
-          colY = (invaderProjectile[i].y - shields[s].y) / (shields[s].h/testSurface[s]->h);
-          if(pixelActive(testSurface[s], colX, colY) == 0x0000FF00)
+          colX = (invaderProjectile[i].x - shields[s].x) / (shields[s].w/shieldSurface[s]->w);
+          colY = (invaderProjectile[i].y - shields[s].y) / (shields[s].h/shieldSurface[s]->h);
+          if(pixelActive(shieldSurface[s], colX, colY) == 0x0000FF00)
           {
             invaderProjectileActive[i] = 0;
-            editPixel(testSurface[s], colX, colY, 1);
-            textureFromSurface[s] = SDL_CreateTextureFromSurface(ren, testSurface[s]);
+            editPixel(shieldSurface[s], colX, colY, 1);
+            shieldTexture[s] = SDL_CreateTextureFromSurface(ren, shieldSurface[s]);
           }
         }
       }
@@ -619,6 +626,8 @@ int main()
     wooAlien(ren, tex, &alien, direction, ufo_lowpitch);
   }
 
+  // Check if all invaders have been killed and start a new game / level by re-initializing some of the variables that define
+  // the start of a new game, e.g. invaders, game speed etc.
   if(invaderskilled == COLS*ROWS)
   {
     newstart = 1;
@@ -656,13 +665,14 @@ int main()
 
   }
 
+  // Set a new position for the "Press any key..." text to be under the game over text
   anykeyHolder.y = gameoverHolder.y+gameoverHolder.h;
 
   while(gameover)
   {
     SDL_Event event;
 
-
+    // Start the timer and after 50 frames move on to clearing the screen and rendering the game over text
     if(loadNewScreen <= 50)
       ++loadNewScreen;
 
@@ -679,6 +689,7 @@ int main()
           gameover = 0;
         }
       }
+      // Clear the screen and render the game over and press any key... texts
       SDL_SetRenderDrawColor(ren, 0, 0, 0, 255);
       SDL_RenderClear(ren);
       SDL_RenderCopy(ren, gameoverTexture, NULL, &gameoverHolder);
@@ -688,6 +699,7 @@ int main()
     SDL_RenderPresent(ren);
   }
 
+  // After all else has been lost, i.e. when we finish/quit the game, free the music chunks, close the SDL_Mixer, SDL_ttf and SDL itself
   Mix_FreeChunk(music[0]);
   Mix_FreeChunk(music[1]);
   Mix_FreeChunk(music[2]);
@@ -708,7 +720,7 @@ void moveSpaceShip(SDL_Rect *spaceShip, int moveDir)
   {
     case LEFT:
     {
-      // "Boundary collision left"
+      // Stop the player from beying able to move past the left side of the screen
       if(spaceShip->x > 0)
       {
         spaceShip->x -= 5;
@@ -721,7 +733,7 @@ void moveSpaceShip(SDL_Rect *spaceShip, int moveDir)
     }
     case RIGHT:
     {
-      // "Boundary collision right"
+      // Stop the player from beying able to move past the right side of the screen
       if(spaceShip->x < WIDTH-SPRITEWIDTH)
       {
         spaceShip->x += 5;
@@ -738,6 +750,7 @@ void moveSpaceShip(SDL_Rect *spaceShip, int moveDir)
 
 void drawSpaceShip(SDL_Renderer *ren, SDL_Texture *tex, SDL_Rect *spaceShip, int *playerDead, char *lives, int *gameover)
 {
+  // Initialize the sprite rect, the explosion timer and the explosion frame stuff
   SDL_Rect sS_sprite;
   static int destroySequence = 0;
   static int explosionSpriteTime = 0;
@@ -745,6 +758,7 @@ void drawSpaceShip(SDL_Renderer *ren, SDL_Texture *tex, SDL_Rect *spaceShip, int
 
   if(!*playerDead)
   {
+    // Sprite coordinates when player's not dead
     sS_sprite.x = 131;
     sS_sprite.y = 623;
     sS_sprite.w = 73;
@@ -752,13 +766,16 @@ void drawSpaceShip(SDL_Renderer *ren, SDL_Texture *tex, SDL_Rect *spaceShip, int
   }
   else
   {
+    // If player died, start the destroy sequence and set the length of it to be 50 frames
     if(destroySequence%10 == 0)
     {
+      // This changes the explosion sprite to "flash" between the two sprites as in the original game
       ++explosionSpriteTime;
       if(explosionSpriteTime%2 == 0)
         explosionSpriteTime = 0;
 
     }
+    // Changing the sprite coordinates to match the two different explosion frames
     if(explosionSpriteTime)
     {
       sS_sprite.x=340;
@@ -1192,9 +1209,9 @@ void wooAlien(SDL_Renderer *ren, SDL_Texture *tex, Invader *alien, int direction
   {
     // Checks where the alien should be moving, i.e. if it spawned to the left or the right side of the screen
     if(direction == 0)
-        alien->pos.x += 4;
+        alien->pos.x += 5;
     else
-        alien->pos.x -= 4;
+        alien->pos.x -= 5;
     // While alien is active play the ufo sound
     playSound(ufosound, 4, -1);
 
@@ -1230,12 +1247,12 @@ SDL_Texture *textureFromText(SDL_Renderer *ren, TTF_Font *font, char *textToRend
   return texture;
 }
 
-void editPixel(SDL_Surface *testSurface, int x, int y, int PlorIn)
+void editPixel(SDL_Surface *shieldSurface, int x, int y, int PlorIn)
 {
   Uint8 *index;
   Uint32 *colour;
   int randomPattern = rand()%3;
-  index = (Uint8 *)testSurface->pixels;
+  index = (Uint8 *)shieldSurface->pixels;
 
   switch(PlorIn)
   {
@@ -1247,11 +1264,11 @@ void editPixel(SDL_Surface *testSurface, int x, int y, int PlorIn)
         {
           for(int c = 0; c < 6; ++c)
           {
-            if((x+(c-3)) >= 0 && (x+(c-3)) < testSurface->w)
+            if((x+(c-3)) >= 0 && (x+(c-3)) < shieldSurface->w)
             {
               if(explosionPattern[randomPattern][r][c])
               {
-                colour = (Uint32 *)&index[(testSurface->pitch*(y-r) + testSurface->format->BytesPerPixel*(x+(c-3)))];
+                colour = (Uint32 *)&index[(shieldSurface->pitch*(y-r) + shieldSurface->format->BytesPerPixel*(x+(c-3)))];
                 *colour = 0x00000000;
               }
             }
@@ -1270,15 +1287,15 @@ void editPixel(SDL_Surface *testSurface, int x, int y, int PlorIn)
     {
       for(int r = 0; r < 12; ++r)
       {
-        if((y+r) < testSurface->h)
+        if((y+r) < shieldSurface->h)
         {
           for(int c = 0; c < 6; ++c)
           {
-            if((x+(c-3)) >= 0 && (x+(c-3)) < testSurface->w)
+            if((x+(c-3)) >= 0 && (x+(c-3)) < shieldSurface->w)
             {
               if(explosionPattern[randomPattern][r][c])
               {
-                colour = (Uint32 *)&index[(testSurface->pitch*(y+r) + testSurface->format->BytesPerPixel*(x+(c-3)))];
+                colour = (Uint32 *)&index[(shieldSurface->pitch*(y+r) + shieldSurface->format->BytesPerPixel*(x+(c-3)))];
                 *colour = 0x00000000;
               }
             }
@@ -1297,11 +1314,11 @@ void editPixel(SDL_Surface *testSurface, int x, int y, int PlorIn)
 
 }
 
-Uint32 pixelActive(SDL_Surface *testSurface, int x, int y)
+Uint32 pixelActive(SDL_Surface *shieldSurface, int x, int y)
 {
   Uint8 *index;
   Uint32 *value;
-  index = (Uint8 *)testSurface->pixels;
-  value = (Uint32 *)&index[(testSurface->pitch*y + testSurface->format->BytesPerPixel*x)];
+  index = (Uint8 *)shieldSurface->pixels;
+  value = (Uint32 *)&index[(shieldSurface->pitch*y + shieldSurface->format->BytesPerPixel*x)];
   return *value;
 }
