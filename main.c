@@ -470,7 +470,7 @@ int main()
       projectileActive = 0;
       score += 10*(alien.type+1);
       sprintf(thescore, "Score: %04i", score);
-      if(lives[0] < 9)
+      if(lives[0] < '9')
       {
         ++lives[0];
         livesTexture = textureFromText(ren, font, lives);
