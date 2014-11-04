@@ -470,8 +470,12 @@ int main()
       projectileActive = 0;
       score += 10*(alien.type+1);
       sprintf(thescore, "Score: %04i", score);
-      ++lives[0];
-      livesTexture = textureFromText(ren, font, lives);
+      if(lives[0] < 9)
+      {
+        ++lives[0];
+        livesTexture = textureFromText(ren, font, lives);
+      }
+      SDL_QueryTexture(livesTexture, NULL, NULL, &livesHolder.w, &livesHolder.h);
       scoreTexture = textureFromText(ren, font, thescore);
       playSound(invaderkilled, 2, 0);
     }
@@ -527,7 +531,7 @@ int main()
 
       // Check if an invader hits the player or reaches the ground => game over
       if((SDL_HasIntersection(&invaders[r][c].pos, &spaceShip) && invaders[r][c].active) ||
-         invaders[r][c].pos.y >= bottomLine.y+SPRITEHEIGHT)
+         (invaders[r][c].pos.y >= bottomLine.y+SPRITEHEIGHT && invaders[r][c].active))
       {
         gameover = 1;
       }
@@ -965,6 +969,7 @@ void updateInvaders(Invader invaders[ROWS][COLS], int *gameSpeed, int *currentFr
   enum DIR{FWD,BWD};
   static int DIRECTION=FWD;
   int yinc=0;
+  int increaseY = GAP/2;
   static int actColR = COLS-1;
   static int actColL = 0;
   int stopLoop = 0;
@@ -978,7 +983,11 @@ void updateInvaders(Invader invaders[ROWS][COLS], int *gameSpeed, int *currentFr
     case 2: whenToUpdate = 6; break;
     case 3: whenToUpdate = 4; break;
     case 4: whenToUpdate = 2; break;
-    default: whenToUpdate = 1; break;
+    case 5: whenToUpdate = 1; break;
+    case 6: whenToUpdate = 1; increaseY = GAP; break;
+    case 7: whenToUpdate = 1; increaseY = GAP+(GAP/2); break;
+    case 8: whenToUpdate = 1; increaseY = GAP*2; break;
+    default: whenToUpdate = 1; increaseY = GAP*4; break;
   }
 
   // Loop through the column from right to find the active outermost column on right
@@ -1028,7 +1037,7 @@ void updateInvaders(Invader invaders[ROWS][COLS], int *gameSpeed, int *currentFr
   if(invaders[0][actColR].pos.x>=WIDTH-(SPRITEWIDTH*2-SPRITEWIDTH/2))
   {
     DIRECTION=BWD;
-    yinc=GAP/2;
+    yinc=increaseY;
     if(updateSpeed%whenToUpdate == 0 && *gameSpeed < 10)
     {
       ++*gameSpeed;
@@ -1041,7 +1050,7 @@ void updateInvaders(Invader invaders[ROWS][COLS], int *gameSpeed, int *currentFr
   else if(invaders[0][actColL].pos.x<=SPRITEWIDTH/2)
   {
     DIRECTION=FWD;
-    yinc=GAP/2;
+    yinc=increaseY;
     if(updateSpeed%whenToUpdate == 0 && *gameSpeed < 10)
     {
       ++*gameSpeed;
