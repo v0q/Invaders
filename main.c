@@ -14,7 +14,7 @@
 #define ANIMATIONSEQUENCELENGTH 800
 #define INFOBOXHEIGHT 40
 #define FONTSIZE 16
-#define PROJECTILESPEED 12
+#define PROJECTILESPEED 16
 
 enum DIRECTION{LEFT,RIGHT};
 
@@ -77,11 +77,16 @@ int main()
   bottomLine.h = 3;
 
   // Initializing the spaceship "holder" and position
-  SDL_Rect spaceShip;
-  spaceShip.x = (WIDTH-SPRITEWIDTH)/2;
+  SDL_Rect spaceShip/*, spaceShip2*/;
+  spaceShip.x = 3*(WIDTH-SPRITEWIDTH)/4;
   spaceShip.y = HEIGHT-50;
   spaceShip.w = SPRITEWIDTH;
   spaceShip.h = 20;
+
+  /*spaceShip2.x = (WIDTH-SPRITEWIDTH)/4;
+  spaceShip2.y = HEIGHT-50;
+  spaceShip2.w = SPRITEWIDTH;
+  spaceShip2.h = 20;*/
 
   // Initializing projectile
   SDL_Rect projectile;
@@ -127,12 +132,29 @@ int main()
   int gameover = 0;
   int loadNewScreen = 1;
   int playerDead = 0;
+  //int player2Dead = 0;
   int startgame = 0;
   int colX = 0;
   int colY = 0;
   int newstart = 0;
+  int fresh = 0;
   int invaderskilled = 0;
-  int level = 1;
+
+  // Main menu stuff start
+  int moveOn = 0;
+  int currentSelectionCoords[2];
+  int selection = 0;
+
+  char mainText[] = "Space Invaders";
+  char scoreTable[] = "*Score Advance Table*";
+  char alienPts[] = "=? Mystery";
+  char invT3[] = "=30 Points";
+  char invT2[] = "=20 Points";
+  char invT1[] = "=10 Points";
+  char oneplayer[] = "1  player";
+  char twoplayers[] = "2  players";
+
+  // Main menu stuff end
 
 
   char thegameover[] = "Game Over";
@@ -150,27 +172,35 @@ int main()
 
 
   // Initializing the stuff for the infobox
-  SDL_Rect scoreHolder;
+  SDL_Rect scoreHolder, highscoreHolder, livesHolder, levelHolder;
   scoreHolder.x = 5;
   scoreHolder.y = INFOBOXHEIGHT/2 - FONTSIZE/2;
   scoreHolder.w = 0;
   scoreHolder.h = 0;
 
-  SDL_Rect livesHolder;
+  highscoreHolder.x = 0;
+  highscoreHolder.y = INFOBOXHEIGHT/2 - FONTSIZE/2;
+  highscoreHolder.w = 0;
+  highscoreHolder.h = 0;
+
   livesHolder.x = 5;
   livesHolder.y = bottomLine.y + FONTSIZE/2;
   livesHolder.w = 0;
   livesHolder.h = 0;
 
-  SDL_Rect levelHolder;
   levelHolder.y = INFOBOXHEIGHT/2 - FONTSIZE/2;
   levelHolder.w = 0;
   levelHolder.h = 0;
 
   int score = 0;
+  int highscore = 0;
+  int level = 1;
   // Making it possible for the variable to be passed to a string that'll be used for the drawing of the text
   char thescore[12] = {0};
   sprintf(thescore, "Score: %04i", score);
+
+  char thehighscore[17] = {0};
+  sprintf(thehighscore, "High score: %04i", highscore);
 
   char thelevel[9] = {0};
   sprintf(thelevel, "Level: %i", level);
@@ -186,8 +216,9 @@ int main()
   }
 
   TTF_Font* font = TTF_OpenFont("fonts/space_invaders.ttf", FONTSIZE);
+  TTF_Font* bigfont = TTF_OpenFont("fonts/space_invaders.ttf", FONTSIZE*4);
 
-  if(font == NULL)
+  if(font == NULL || bigfont == NULL)
   {
     printf("BOOM FAILED %s\n", TTF_GetError());
   }
@@ -279,17 +310,18 @@ int main()
   SDL_FreeSurface(image);
 
   // Initialize the score stuff
-  SDL_Texture *scoreTexture;
+  SDL_Texture *scoreTexture, *highscoreTexture, *livesTexture, *levelTexture;
 
   scoreTexture = textureFromText(ren, font, thescore);
   SDL_QueryTexture(scoreTexture, NULL, NULL, &scoreHolder.w, &scoreHolder.h);
 
-  // Initialize lives rendering
-  SDL_Texture *livesTexture;
+  highscoreTexture = textureFromText(ren, font, thehighscore);
+  SDL_QueryTexture(highscoreTexture, NULL, NULL, &highscoreHolder.w, &highscoreHolder.h);
+  highscoreHolder.x = (WIDTH-highscoreHolder.w)/2;
+
   livesTexture = textureFromText(ren, font, lives);
   SDL_QueryTexture(livesTexture, NULL, NULL, &livesHolder.w, &livesHolder.h);
 
-  SDL_Texture *levelTexture;
   levelTexture = textureFromText(ren, font, thelevel);
   SDL_QueryTexture(levelTexture, NULL, NULL, &levelHolder.w, &levelHolder.h);
   levelHolder.x = WIDTH-5-levelHolder.w;
@@ -309,8 +341,6 @@ int main()
     shieldTexture[i] = SDL_CreateTextureFromSurface(ren, shieldSurface[i]);
   }
 
-
-
   // Initializing the rect holders for game over and press any key textures
   SDL_Rect gameoverHolder;
   SDL_Rect anykeyHolder;
@@ -319,11 +349,8 @@ int main()
   SDL_Texture *gameoverTexture;
   SDL_Texture *anykeyTexture;
 
-  // Making a font with bigger font size for the game over texture
-  TTF_Font* gofont = TTF_OpenFont("fonts/space_invaders.ttf", FONTSIZE*3);
-
   // Creating the textures by passing the required data to the function that creates textures from text
-  gameoverTexture = textureFromText(ren, gofont, thegameover);
+  gameoverTexture = textureFromText(ren, bigfont, thegameover);
   anykeyTexture = textureFromText(ren, font, pressanykey);
 
   // Getting the width and height for the rect holders from the texture
@@ -337,6 +364,98 @@ int main()
   anykeyHolder.x = (WIDTH-anykeyHolder.w)/2;
   anykeyHolder.y = (HEIGHT-gameoverHolder.h)/2;
 
+
+  // Initializing the first screen texts etc.
+
+  SDL_Rect mainTextHolder, scoreTableHolder, alienPtsHolder, invT3Holder, invT2Holder, invT1Holder, invader[4], invaderSrcR[4], oneplayerHolder, twoplayersHolder, selectRect;
+  SDL_Texture *mainTextTexture, *scoreTableTexture, *alienPtsTexture, *invT3Texture, *invT2Texture, *invT1Texture, *onePTexture, *twoPtexture;
+
+  selectRect.h = 10;
+  selectRect.w = 10;
+
+  invaderSrcR[2].x=292;
+  invaderSrcR[2].y=0;
+  invaderSrcR[2].w=80;
+  invaderSrcR[2].h=80;
+
+  invaderSrcR[1].x=145;
+  invaderSrcR[1].y=0;
+  invaderSrcR[1].w=111;
+  invaderSrcR[1].h=80;
+
+  invaderSrcR[0].x=140;
+  invaderSrcR[0].y=120;
+  invaderSrcR[0].w=120;
+  invaderSrcR[0].h=80;
+
+  invaderSrcR[3].x = 0;
+  invaderSrcR[3].y = 616;
+  invaderSrcR[3].w = 125;
+  invaderSrcR[3].h = 61;
+
+  mainTextTexture = textureFromText(ren, bigfont, mainText);
+  scoreTableTexture = textureFromText(ren, font, scoreTable);
+  alienPtsTexture = textureFromText(ren, font, alienPts);
+  invT3Texture = textureFromText(ren, font, invT3);
+  invT2Texture = textureFromText(ren, font, invT2);
+  invT1Texture = textureFromText(ren, font, invT1);
+  onePTexture = textureFromText(ren, font, oneplayer);
+  twoPtexture = textureFromText(ren, font, twoplayers);
+
+  SDL_QueryTexture(anykeyTexture, NULL, NULL, &anykeyHolder.w, &anykeyHolder.h);
+  SDL_QueryTexture(mainTextTexture, NULL, NULL, &mainTextHolder.w, &mainTextHolder.h);
+  SDL_QueryTexture(scoreTableTexture, NULL, NULL, &scoreTableHolder.w, &scoreTableHolder.h);
+  SDL_QueryTexture(alienPtsTexture, NULL, NULL, &alienPtsHolder.w, &alienPtsHolder.h);
+  SDL_QueryTexture(invT3Texture, NULL, NULL, &invT3Holder.w, &invT3Holder.h);
+  SDL_QueryTexture(invT2Texture, NULL, NULL, &invT2Holder.w, &invT2Holder.h);
+  SDL_QueryTexture(invT1Texture, NULL, NULL, &invT1Holder.w, &invT1Holder.h);
+  SDL_QueryTexture(onePTexture, NULL, NULL, &oneplayerHolder.w, &oneplayerHolder.h);
+  SDL_QueryTexture(twoPtexture, NULL, NULL, &twoplayersHolder.w, &twoplayersHolder.h);
+
+  mainTextHolder.x = (WIDTH-mainTextHolder.w)/2;
+  mainTextHolder.y = HEIGHT/4;
+
+  scoreTableHolder.x = (WIDTH-scoreTableHolder.w)/2;
+  oneplayerHolder.y = twoplayersHolder.y = scoreTableHolder.y = mainTextHolder.y + mainTextHolder.h + 75;
+
+  alienPtsHolder.x = (WIDTH-alienPtsHolder.w)/2;
+  invader[3].y = alienPtsHolder.y = scoreTableHolder.y + scoreTableHolder.h + 5;
+
+  invT3Holder.x = (WIDTH-invT3Holder.w)/2;
+  invader[2].y = invT3Holder.y = alienPtsHolder.y + alienPtsHolder.h + 5;
+
+  invT2Holder.x = (WIDTH-invT2Holder.w)/2;
+  invader[1].y = invT2Holder.y = invT3Holder.y + invT3Holder.h + 5;
+
+  invT1Holder.x = (WIDTH-invT1Holder.w)/2;
+  invader[0].y = invT1Holder.y = invT2Holder.y + invT2Holder.h + 5;
+
+  oneplayerHolder.x = WIDTH/2 - oneplayerHolder.w - oneplayerHolder.w/2;
+  twoplayersHolder.x = WIDTH/2 + oneplayerHolder.w/2;
+
+  currentSelectionCoords[0] = oneplayerHolder.x - selectRect.w*2;
+  currentSelectionCoords[1] = twoplayersHolder.x - selectRect.w*2;
+
+  selectRect.x = currentSelectionCoords[0];
+  selectRect.y = oneplayerHolder.y + oneplayerHolder.h/2 - 2*selectRect.h/3;
+
+  for(int i = 0; i < 3; ++i)
+  {
+    invader[i].w = invT1Holder.h*(SPRITEWIDTH/SPRITEHEIGHT);
+    invader[i].h = invT1Holder.h;
+  }
+
+  invader[3].w = 3*invT1Holder.h*(invaderSrcR[3].w/invaderSrcR[3].h)/4;
+  invader[3].h = 3*invT1Holder.h/4;
+
+  invader[0].x = invT1Holder.x - invader[0].w - 5;
+  invader[1].x = invT1Holder.x - invader[1].w - 5;
+  invader[2].x = invT1Holder.x - invader[2].w - 5;
+  invader[3].x = alienPtsHolder.x - invader[3].w - 5;
+
+  anykeyHolder.x = (WIDTH-anykeyHolder.w)/2;
+  anykeyHolder.y = (HEIGHT-anykeyHolder.h)/2;
+
 // ---------------------------------------------------------
 // --------------- INITIALIZING STUFF END ------------------
 // ---------------------------------------------------------
@@ -345,30 +464,87 @@ int main()
 
   while(!startgame)
   {
-
     SDL_Event event;
     while (SDL_PollEvent(&event))
     {
-      // look for the x of the window being clicked and exit
       if (event.type == SDL_QUIT)
+      {
         quit = 1;
-      // check for a key down
+        startgame = 1;
+      }
       if (event.type == SDL_KEYDOWN)
       {
-        startgame = 1;
+        switch (event.key.keysym.sym)
+        {
+          case SDLK_ESCAPE: quit = 1; startgame = 1; break;
+          case SDLK_RETURN:
+          {
+            if(moveOn)
+            {
+              if(!selection)
+              {
+                printf("1 Player\n");
+                startgame = 1;
+              }
+              else
+              {
+                printf("2 Players\n");
+                startgame = 1;
+              }
+            }
+            else
+            {
+            moveOn = 1;
+            }
+            break;
+          }
+          case SDLK_RIGHT: case SDLK_LEFT:
+          {
+            if(moveOn)
+            {
+              if(!selection)
+                ++selection;
+              else
+                selection = 0;
+
+              selectRect.x = currentSelectionCoords[selection];
+            }
+            break;
+          }
+        }
       }
     }
 
     SDL_SetRenderDrawColor(ren, 0, 0, 0, 255);
     SDL_RenderClear(ren);
-    SDL_RenderCopy(ren, anykeyTexture, NULL, &anykeyHolder);
+    SDL_RenderCopy(ren, mainTextTexture, NULL, &mainTextHolder);
+    if(!moveOn)
+    {
+      SDL_RenderCopy(ren, scoreTableTexture, NULL, &scoreTableHolder);
+      SDL_RenderCopy(ren, alienPtsTexture, NULL, &alienPtsHolder);
+      SDL_RenderCopy(ren, invT3Texture, NULL, &invT3Holder);
+      SDL_RenderCopy(ren, invT2Texture, NULL, &invT2Holder);
+      SDL_RenderCopy(ren, invT1Texture, NULL, &invT1Holder);
+      for(int i = 0; i < 4; ++i)
+      {
+        SDL_RenderCopy(ren, tex, &invaderSrcR[i], &invader[i]);
+      }
+      //SDL_RenderCopy(ren, anykeyTexture, NULL, &anykeyHolder);
+    }
+    else
+    {
+      SDL_SetRenderDrawColor(ren, 255, 255, 255, 255);
+      SDL_RenderFillRect(ren, &selectRect);
+      SDL_RenderCopy(ren, onePTexture, NULL, &oneplayerHolder);
+      SDL_RenderCopy(ren, twoPtexture, NULL, &twoplayersHolder);
+    }
     SDL_RenderPresent(ren);
   }
 
 
   // now we are going to loop forever, process the keys then draw
 
-  while (quit !=1 && !gameover)
+  while (quit !=1)
   {
 
     if(newstart)
@@ -379,6 +555,35 @@ int main()
       playerDead = 0;
       invaderskilled = 0;
       ++level;
+
+      if(fresh)
+      {
+        score = 0;
+        lives[0] = '3';
+        level = 1;
+        playerDead = 0;
+        livesTexture = textureFromText(ren, font, lives);
+
+        for(int i = 0; i < 4; ++i)
+        {
+          shieldSurface[i] = IMG_Load("shieldTexture.png");
+          if(!shieldSurface[i])
+          {
+           printf("IMG_Load: %s\n", IMG_GetError());
+           return EXIT_FAILURE;
+          }
+          shieldTexture[i] = SDL_CreateTextureFromSurface(ren, shieldSurface[i]);
+        }
+
+        score = 0;
+        sprintf(thescore, "Score: %04i", score);
+        scoreTexture = textureFromText(ren, font, thescore);
+
+        sprintf(thehighscore, "High score: %04i", highscore);
+        highscoreTexture = textureFromText(ren, font, thehighscore);
+        fresh = 0;
+      }
+
       sprintf(thelevel, "Level: %i", level);
       levelTexture = textureFromText(ren, font, thelevel);
       newstart = 0;
@@ -387,14 +592,22 @@ int main()
 
     // Checking if LEFT or RIGHT key (optionally A or D) is pressed and running the moveSpaceShip function accordingly.
     // Using the SDL_GetKeyboardState instead so the movement doesn't stop when pressing another key.
-    if((keystate[SDL_SCANCODE_LEFT] || keystate[SDL_SCANCODE_A]) && !playerDead)
+    if(keystate[SDL_SCANCODE_LEFT] && !playerDead)
     {
       moveSpaceShip(&spaceShip, LEFT);
     }
-    if((keystate[SDL_SCANCODE_RIGHT] || keystate[SDL_SCANCODE_D]) && !playerDead)
+    if(keystate[SDL_SCANCODE_RIGHT] && !playerDead)
     {
       moveSpaceShip(&spaceShip, RIGHT);
     }
+    /*if(keystate[SDL_SCANCODE_A] && !player2Dead)
+    {
+      moveSpaceShip(&spaceShip2, LEFT);
+    }
+    if(keystate[SDL_SCANCODE_D] && !player2Dead)
+    {
+      moveSpaceShip(&spaceShip2, RIGHT);
+    }*/
 
     SDL_Event event;
     // grab the SDL even (this will be keys etc)
@@ -430,6 +643,7 @@ int main()
           }
           break;
         }
+
         }
       }
     }
@@ -468,13 +682,15 @@ int main()
       alien.frame = 1;
       Mix_Pause(4);
       projectileActive = 0;
-      score += 10*(alien.type+1);
+      score += 100;
       sprintf(thescore, "Score: %04i", score);
       if(lives[0] < '9')
       {
         ++lives[0];
         livesTexture = textureFromText(ren, font, lives);
       }
+      else
+        score += 500;
       SDL_QueryTexture(livesTexture, NULL, NULL, &livesHolder.w, &livesHolder.h);
       scoreTexture = textureFromText(ren, font, thescore);
       playSound(invaderkilled, 2, 0);
@@ -484,7 +700,7 @@ int main()
     for(int i = 0; i < 4; ++i)
     {
       // Compensating for the projectile speed, i.e. the "skips" that it does by moving so fast
-      for(int pSC = 0; pSC < PROJECTILESPEED+projectile.h; ++pSC)
+      for(int pSC = projectile.h; pSC < PROJECTILESPEED+projectile.h; ++pSC)
       {
         // Using this compensated "projectile" that's not rendered as the colliding one and store the coordinates in a separate "collision rect"
         SDL_Rect collision;
@@ -531,9 +747,11 @@ int main()
 
       // Check if an invader hits the player or reaches the ground => game over
       if((SDL_HasIntersection(&invaders[r][c].pos, &spaceShip) && invaders[r][c].active) ||
-         (invaders[r][c].pos.y >= bottomLine.y+SPRITEHEIGHT && invaders[r][c].active))
+         (invaders[r][c].pos.y >= bottomLine.y-SPRITEHEIGHT && invaders[r][c].active))
       {
         gameover = 1;
+        if(highscore < score)
+          highscore = score;
       }
     }
   }
@@ -602,6 +820,11 @@ int main()
         playerDead = 1;
         --lives[0];
         livesTexture = textureFromText(ren, font, lives);
+        if(lives[0] == '0')
+        {
+          if(highscore < score)
+            highscore = score;
+        }
         playSound(explosion, 4, 0);
       }
 
@@ -645,6 +868,8 @@ int main()
   if(playerDead != 2)
     drawSpaceShip(ren, tex, &spaceShip, &playerDead, lives, &gameover);
 
+  //drawSpaceShip(ren, tex, &spaceShip2, &playerDead, lives, &gameover);
+
   // Draw a line to separate the info bar from the field
   SDL_SetRenderDrawColor(ren, 255, 255, 255, 255);
   SDL_RenderFillRect(ren, &infoLine);
@@ -655,6 +880,7 @@ int main()
 
   // Render score, lives and level
   SDL_RenderCopy(ren, scoreTexture, NULL, &scoreHolder);
+  SDL_RenderCopy(ren, highscoreTexture, NULL, &highscoreHolder);
   SDL_RenderCopy(ren, livesTexture, NULL, &livesHolder);
   SDL_RenderCopy(ren, levelTexture, NULL, &levelHolder);
   renderLives(ren, tex, lives);
@@ -667,14 +893,10 @@ int main()
 
   SDL_RenderPresent(ren);
 
-  }
-
-  // Set a new position for the "Press any key..." text to be under the game over text
-  anykeyHolder.y = gameoverHolder.y+gameoverHolder.h;
-
   while(gameover)
   {
-    SDL_Event event;
+    // Set a new position for the "Press any key..." text to be under the game over text
+    anykeyHolder.y = gameoverHolder.y+gameoverHolder.h;
 
     // Start the timer and after 50 frames move on to clearing the screen and rendering the game over text
     if(loadNewScreen <= 50)
@@ -686,10 +908,19 @@ int main()
       {
         // look for the x of the window being clicked and exit
         if (event.type == SDL_QUIT)
-          gameover = 0;
+          quit = 1;
         // check for a key down
         if (event.type == SDL_KEYDOWN)
         {
+          switch(event.key.keysym.sym)
+          {
+            case SDLK_ESCAPE: quit = 1; break;
+            default:
+            {
+                newstart = 1;
+                fresh = 1;
+            }
+          }
           gameover = 0;
         }
       }
@@ -701,6 +932,9 @@ int main()
     }
 
     SDL_RenderPresent(ren);
+  }
+
+
   }
 
   // After all else has been lost, i.e. when we finish/quit the game, free the music chunks, close the SDL_Mixer, SDL_ttf and SDL itself
@@ -1260,7 +1494,8 @@ void editPixel(SDL_Surface *shieldSurface, int x, int y, int PlorIn)
 {
   Uint8 *index;
   Uint32 *colour;
-  int randomPattern = rand()%3;
+  srand(clock());
+  int randomPattern = rand()%4;
   index = (Uint8 *)shieldSurface->pixels;
 
   switch(PlorIn)
