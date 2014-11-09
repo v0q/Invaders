@@ -25,7 +25,7 @@ void drawInvaders(SDL_Renderer *ren,SDL_Texture *tex,Invader invaders[ROWS][COLS
 void invaderShootPewPew(SDL_Renderer *ren, SDL_Texture *tex, SDL_Rect *invaderProjectile);
 
 void moveSpaceShip(SDL_Rect *spaceShip, int moveDir);
-void drawSpaceShip(SDL_Renderer *ren, SDL_Texture *sStexture, SDL_Rect *spaceShip, int *playerDead, char *lives);
+void drawSpaceShip(SDL_Renderer *ren, SDL_Texture *sStexture, SDL_Rect *spaceShip, int *playerDead, char *lives, int player);
 void wooAlien(SDL_Renderer *ren, SDL_Texture *tex, Invader *alien, int direction, Mix_Chunk *ufosound);
 
 void shootPewPew(SDL_Renderer *ren, SDL_Rect *projectile);
@@ -91,8 +91,9 @@ int main()
   }
 
   // Initializing the box for projectile explosion
-  SDL_Rect projectileBoom;
-  projectileBoom.y = +infoLine.y+infoLine.h;
+  SDL_Rect projectileBoom[2];
+  projectileBoom[0].y = infoLine.y+infoLine.h;
+  projectileBoom[1].y = infoLine.y+infoLine.h;
 
   SDL_Rect invaderProjectile[COLS];
 
@@ -119,7 +120,7 @@ int main()
   int gameSpeed = 1;
   int projectileActive[2] = {0};
   int direction = 0;
-  int explodeP = 0;
+  int explodeP[2] = {0};
   int currentFrame = 0;
   int quit=0;
   int actInvaderInRow[COLS];
@@ -166,7 +167,7 @@ int main()
 
 
   // Initializing the stuff for the infobox
-  SDL_Rect scoreHolder, highscoreHolder, livesHolder[2], levelHolder;
+  SDL_Rect scoreHolder, highscoreHolder, livesHolder[2], levelHolder, p1keysHolder, p2keysHolder;
   scoreHolder.x = 5;
   scoreHolder.y = INFOBOXHEIGHT/2 - FONTSIZE/2;
   scoreHolder.w = 0;
@@ -187,6 +188,12 @@ int main()
   levelHolder.y = INFOBOXHEIGHT/2 - FONTSIZE/2;
   levelHolder.w = 0;
   levelHolder.h = 0;
+
+  p1keysHolder.w = 2*390/3;
+  p1keysHolder.h = 2*87/3;
+
+  p2keysHolder.w = 2*226/3;
+  p2keysHolder.h = 2*137/3;
 
   int score = 0;
   int highscore = 0;
@@ -290,11 +297,13 @@ int main()
   SDL_SetRenderDrawColor(ren, 255, 255, 255, 255);
 
 //  // SDL image is an abstraction for all images
-  SDL_Surface *image;
+  SDL_Surface *image, *p1keys, *p2keys;
 //  // we are going to use the extension SDL_image library to load a png, documentation can be found here
 //  // http://www.libsdl.org/projects/SDL_image/
-  image=IMG_Load("sprites.png");
-  if(!image)
+  image = IMG_Load("sprites/sprites.png");
+  p1keys = IMG_Load("sprites/p1keys.png");
+  p2keys = IMG_Load("sprites/p2keys.png");
+  if(!image || !p1keys || !p2keys)
   {
     printf("IMG_Load: %s\n", IMG_GetError());
     return EXIT_FAILURE;
@@ -302,10 +311,14 @@ int main()
 //  // SDL texture converts the image to a texture suitable for SDL rendering  / blitting
 //  // once we have the texture it will be store in hardware and we don't need the image data anymore
 
-  SDL_Texture *tex = 0;
+  SDL_Texture *tex, *p1ktex, *p2ktex;
   tex = SDL_CreateTextureFromSurface(ren, image);
+  p1ktex = SDL_CreateTextureFromSurface(ren, p1keys);
+  p2ktex = SDL_CreateTextureFromSurface(ren, p2keys);
   // free the image
   SDL_FreeSurface(image);
+  SDL_FreeSurface(p1keys);
+  SDL_FreeSurface(p2keys);
 
   // Initialize the score stuff
   SDL_Texture *scoreTexture, *highscoreTexture, *livesTexture[2], *levelTexture;
@@ -333,7 +346,7 @@ int main()
 
   for(int i = 0; i < 4; ++i)
   {
-    shieldSurface[i] = IMG_Load("shieldTexture.png");
+    shieldSurface[i] = IMG_Load("sprites/shieldTexture.png");
     if(!shieldSurface[i])
     {
      printf("IMG_Load: %s\n", IMG_GetError());
@@ -440,6 +453,10 @@ int main()
   selectRect.x = currentSelectionCoords[0];
   selectRect.y = oneplayerHolder.y + oneplayerHolder.h/2 - 2*selectRect.h/3;
 
+  p1keysHolder.y = p2keysHolder.y = oneplayerHolder.y + 75;
+  p1keysHolder.x = WIDTH/2 - p1keysHolder.w - 50;
+  p2keysHolder.x = WIDTH/2 + 50;
+
   for(int i = 0; i < 3; ++i)
   {
     invader[i].w = invT1Holder.h*(SPRITEWIDTH/SPRITEHEIGHT);
@@ -484,14 +501,14 @@ int main()
             {
               if(!selection)
               {
-                printf("1 Player\n");
+                //printf("1 Player\n");
                 startgame = 1;
                 spaceShip[0].x = (WIDTH-SPRITEWIDTH)/2;
                 livesHolder[0].x = 5;
               }
               else
               {
-                printf("2 Players\n");
+                //printf("2 Players\n");
                 startgame = 1;
                 spaceShip[0].x = 3*(WIDTH-SPRITEWIDTH)/4;
                 spaceShip[1].x = (WIDTH-SPRITEWIDTH)/4;
@@ -542,6 +559,18 @@ int main()
     {
       SDL_SetRenderDrawColor(ren, 255, 255, 255, 255);
       SDL_RenderFillRect(ren, &selectRect);
+
+      if(selection)
+      {
+        p1keysHolder.x = WIDTH/2 - p1keysHolder.w - 50;
+        SDL_RenderCopy(ren, p2ktex, NULL, &p2keysHolder);
+      }
+      else
+      {
+        p1keysHolder.x = (WIDTH-p1keysHolder.w)/2;
+      }
+
+      SDL_RenderCopy(ren, p1ktex, NULL, &p1keysHolder);
       SDL_RenderCopy(ren, onePTexture, NULL, &oneplayerHolder);
       SDL_RenderCopy(ren, twoPtexture, NULL, &twoplayersHolder);
     }
@@ -579,7 +608,7 @@ int main()
 
         for(int i = 0; i < 4; ++i)
         {
-          shieldSurface[i] = IMG_Load("shieldTexture.png");
+          shieldSurface[i] = IMG_Load("sprites/shieldTexture.png");
           if(!shieldSurface[i])
           {
            printf("IMG_Load: %s\n", IMG_GetError());
@@ -692,15 +721,15 @@ int main()
     if(projectileActive[p])
     {
       // Check the projectile reaches the top of the screen and destroy it
-      if(projectile[p].y <= 0+infoLine.y+infoLine.h)
+      if(projectile[p].y+projectile[p].h <= infoLine.y+infoLine.h+PROJECTILESPEED)
       {
         // Assign some variables needed for the "explosion" of the projectile
         // As the width of the explosion if different from the projectiles width, we're gonna move the x coordinate of the explosion
         // half the sprites width to left
-        projectileBoom.x = projectile[p].x - SPRITEWIDTH/2;
+        projectileBoom[p].x = projectile[p].x - SPRITEWIDTH/2;
 
         // Activate the variable determining that an explosion should happen
-        explodeP = 1;
+        explodeP[p] = 1;
         projectileActive[p] = 0;
       }
 
@@ -793,10 +822,13 @@ int main()
   }
 
   // Checks if an explosion sequence should be run
-  if(explodeP)
+  for(int p = 0; p < selection+1; ++p)
   {
-    // If yes, pass the needed stuff to a function handling the explosion
-    explodeProjectile(ren, &projectileBoom, tex, &explodeP);
+    if(explodeP[p])
+    {
+      // If yes, pass the needed stuff to a function handling the explosion
+      explodeProjectile(ren, &projectileBoom[p], tex, &explodeP[p]);
+    }
   }
 
   // Set the a new seed for the random stuff every second, i.e. something random can occur only every second instead of every frame
@@ -906,9 +938,9 @@ int main()
 
   // Checks if players still have lives left
   if(playerDead[0] != 2)
-    drawSpaceShip(ren, tex, &spaceShip[0], &playerDead[0], lives[0]);
+    drawSpaceShip(ren, tex, &spaceShip[0], &playerDead[0], lives[0], 0);
   if(playerDead[1] != 2 && selection)
-    drawSpaceShip(ren, tex, &spaceShip[1], &playerDead[1], lives[1]);
+    drawSpaceShip(ren, tex, &spaceShip[1], &playerDead[1], lives[1], 1);
 
   if(playerDead[0] == 2)
   {
@@ -1045,7 +1077,7 @@ void moveSpaceShip(SDL_Rect *spaceShip, int moveDir)
   }
 }
 
-void drawSpaceShip(SDL_Renderer *ren, SDL_Texture *tex, SDL_Rect *spaceShip, int *playerDead, char *lives)
+void drawSpaceShip(SDL_Renderer *ren, SDL_Texture *tex, SDL_Rect *spaceShip, int *playerDead, char *lives, int player)
 {
   // Initialize the sprite rect, the explosion timer and the explosion frame stuff
   SDL_Rect sS_sprite;
@@ -1060,6 +1092,8 @@ void drawSpaceShip(SDL_Renderer *ren, SDL_Texture *tex, SDL_Rect *spaceShip, int
     sS_sprite.y = 623;
     sS_sprite.w = 73;
     sS_sprite.h = 52;
+    if(player)
+      SDL_SetTextureColorMod(tex, 255, 0, 0);
   }
   else
   {
