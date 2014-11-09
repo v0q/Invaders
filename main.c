@@ -25,7 +25,7 @@ void drawInvaders(SDL_Renderer *ren,SDL_Texture *tex,Invader invaders[ROWS][COLS
 void invaderShootPewPew(SDL_Renderer *ren, SDL_Texture *tex, SDL_Rect *invaderProjectile);
 
 void moveSpaceShip(SDL_Rect *spaceShip, int moveDir);
-void drawSpaceShip(SDL_Renderer *ren, SDL_Texture *sStexture, SDL_Rect *spaceShip, int *playerDead, char *lives, int *gameover);
+void drawSpaceShip(SDL_Renderer *ren, SDL_Texture *sStexture, SDL_Rect *spaceShip, int *playerDead, char *lives);
 void wooAlien(SDL_Renderer *ren, SDL_Texture *tex, Invader *alien, int direction, Mix_Chunk *ufosound);
 
 void shootPewPew(SDL_Renderer *ren, SDL_Rect *projectile);
@@ -34,7 +34,7 @@ void explodeProjectile(SDL_Renderer *ren, SDL_Rect *projectileBoom, SDL_Texture 
 void playSound(Mix_Chunk *sound, int chanToPlay, int loops);
 void playMusic(int gameSpeed, Mix_Chunk *music[4]);
 
-void renderLives(SDL_Renderer *ren, SDL_Texture *tex, char *lives);
+void renderLives(SDL_Renderer *ren, SDL_Texture *tex, char *lives, int player, int players);
 
 SDL_Texture *textureFromText(SDL_Renderer *ren, TTF_Font *font, char *textToRender);
 
@@ -76,24 +76,19 @@ int main()
   bottomLine.w = WIDTH;
   bottomLine.h = 3;
 
-  // Initializing the spaceship "holder" and position
-  SDL_Rect spaceShip/*, spaceShip2*/;
-  spaceShip.x = 3*(WIDTH-SPRITEWIDTH)/4;
-  spaceShip.y = HEIGHT-50;
-  spaceShip.w = SPRITEWIDTH;
-  spaceShip.h = 20;
+  // Initializing the spaceship "holders", positions and projectiles
+  SDL_Rect spaceShip[2], projectile[2];
 
-  /*spaceShip2.x = (WIDTH-SPRITEWIDTH)/4;
-  spaceShip2.y = HEIGHT-50;
-  spaceShip2.w = SPRITEWIDTH;
-  spaceShip2.h = 20;*/
-
-  // Initializing projectile
-  SDL_Rect projectile;
-  projectile.x = 0;
-  projectile.y = 0;
-  projectile.w = 2;
-  projectile.h = 8;
+  for(int i = 0; i < 2; ++i)
+  {
+    spaceShip[i].y = HEIGHT-50;
+    spaceShip[i].w = SPRITEWIDTH;
+    spaceShip[i].h = 20;
+    projectile[i].x = 0;
+    projectile[i].y = 0;
+    projectile[i].w = 2;
+    projectile[i].h = 8;
+  }
 
   // Initializing the box for projectile explosion
   SDL_Rect projectileBoom;
@@ -122,7 +117,7 @@ int main()
   // Some variables used all around
   initializeInvaders(invaders);
   int gameSpeed = 1;
-  int projectileActive = 0;
+  int projectileActive[2] = {0};
   int direction = 0;
   int explodeP = 0;
   int currentFrame = 0;
@@ -131,8 +126,7 @@ int main()
   int invaderProjectileActive[COLS];
   int gameover = 0;
   int loadNewScreen = 1;
-  int playerDead = 0;
-  //int player2Dead = 0;
+  int playerDead[2] = {0};
   int startgame = 0;
   int colX = 0;
   int colY = 0;
@@ -172,7 +166,7 @@ int main()
 
 
   // Initializing the stuff for the infobox
-  SDL_Rect scoreHolder, highscoreHolder, livesHolder, levelHolder;
+  SDL_Rect scoreHolder, highscoreHolder, livesHolder[2], levelHolder;
   scoreHolder.x = 5;
   scoreHolder.y = INFOBOXHEIGHT/2 - FONTSIZE/2;
   scoreHolder.w = 0;
@@ -183,10 +177,12 @@ int main()
   highscoreHolder.w = 0;
   highscoreHolder.h = 0;
 
-  livesHolder.x = 5;
-  livesHolder.y = bottomLine.y + FONTSIZE/2;
-  livesHolder.w = 0;
-  livesHolder.h = 0;
+  for(int i = 0; i < 2; ++i)
+  {
+    livesHolder[i].w = 0;
+    livesHolder[i].h = 0;
+    livesHolder[i].y = bottomLine.y + FONTSIZE/2;
+  }
 
   levelHolder.y = INFOBOXHEIGHT/2 - FONTSIZE/2;
   levelHolder.w = 0;
@@ -206,7 +202,9 @@ int main()
   sprintf(thelevel, "Level: %i", level);
 
 
-  char lives[] = "3";
+  char lives[2][2] = {"3", "3"};
+//  lives[0][0] = '3';
+//  lives[1][0] = '3';
 
   // Initialize TTF
   if(TTF_Init() == -1)
@@ -310,7 +308,7 @@ int main()
   SDL_FreeSurface(image);
 
   // Initialize the score stuff
-  SDL_Texture *scoreTexture, *highscoreTexture, *livesTexture, *levelTexture;
+  SDL_Texture *scoreTexture, *highscoreTexture, *livesTexture[2], *levelTexture;
 
   scoreTexture = textureFromText(ren, font, thescore);
   SDL_QueryTexture(scoreTexture, NULL, NULL, &scoreHolder.w, &scoreHolder.h);
@@ -319,8 +317,11 @@ int main()
   SDL_QueryTexture(highscoreTexture, NULL, NULL, &highscoreHolder.w, &highscoreHolder.h);
   highscoreHolder.x = (WIDTH-highscoreHolder.w)/2;
 
-  livesTexture = textureFromText(ren, font, lives);
-  SDL_QueryTexture(livesTexture, NULL, NULL, &livesHolder.w, &livesHolder.h);
+  for(int i = 0; i < 2; ++i)
+  {
+    livesTexture[i] = textureFromText(ren, font, lives[i]);
+    SDL_QueryTexture(livesTexture[i], NULL, NULL, &livesHolder[i].w, &livesHolder[i].h);
+  }
 
   levelTexture = textureFromText(ren, font, thelevel);
   SDL_QueryTexture(levelTexture, NULL, NULL, &levelHolder.w, &levelHolder.h);
@@ -485,11 +486,17 @@ int main()
               {
                 printf("1 Player\n");
                 startgame = 1;
+                spaceShip[0].x = (WIDTH-SPRITEWIDTH)/2;
+                livesHolder[0].x = 5;
               }
               else
               {
                 printf("2 Players\n");
                 startgame = 1;
+                spaceShip[0].x = 3*(WIDTH-SPRITEWIDTH)/4;
+                spaceShip[1].x = (WIDTH-SPRITEWIDTH)/4;
+                livesHolder[0].x = WIDTH-5-livesHolder[0].w;
+                livesHolder[1].x = 5;
               }
             }
             else
@@ -552,17 +559,23 @@ int main()
       initializeInvaders(invaders);
       gameSpeed = 1;
       currentFrame = 0;
-      playerDead = 0;
+      //playerDead[0] = 0;
+      //playerDead[1] = 0;
       invaderskilled = 0;
       ++level;
 
       if(fresh)
       {
         score = 0;
-        lives[0] = '3';
         level = 1;
-        playerDead = 0;
-        livesTexture = textureFromText(ren, font, lives);
+        spaceShip[0].x = 3*(WIDTH-SPRITEWIDTH)/4;
+        spaceShip[1].x = (WIDTH-SPRITEWIDTH)/4;
+        for(int i = 0; i < selection+1; ++i)
+        {
+          lives[i][0] = '3';
+          livesTexture[i] = textureFromText(ren, font, lives[i]);
+          playerDead[i] = 0;
+        }
 
         for(int i = 0; i < 4; ++i)
         {
@@ -592,22 +605,22 @@ int main()
 
     // Checking if LEFT or RIGHT key (optionally A or D) is pressed and running the moveSpaceShip function accordingly.
     // Using the SDL_GetKeyboardState instead so the movement doesn't stop when pressing another key.
-    if(keystate[SDL_SCANCODE_LEFT] && !playerDead)
+    if(keystate[SDL_SCANCODE_LEFT] && !playerDead[0])
     {
-      moveSpaceShip(&spaceShip, LEFT);
+      moveSpaceShip(&spaceShip[0], LEFT);
     }
-    if(keystate[SDL_SCANCODE_RIGHT] && !playerDead)
+    if(keystate[SDL_SCANCODE_RIGHT] && !playerDead[0])
     {
-      moveSpaceShip(&spaceShip, RIGHT);
+      moveSpaceShip(&spaceShip[0], RIGHT);
     }
-    /*if(keystate[SDL_SCANCODE_A] && !player2Dead)
+    if(keystate[SDL_SCANCODE_A] && !playerDead[1] && selection)
     {
-      moveSpaceShip(&spaceShip2, LEFT);
+      moveSpaceShip(&spaceShip[1], LEFT);
     }
-    if(keystate[SDL_SCANCODE_D] && !player2Dead)
+    if(keystate[SDL_SCANCODE_D] && !playerDead[1] && selection)
     {
-      moveSpaceShip(&spaceShip2, RIGHT);
-    }*/
+      moveSpaceShip(&spaceShip[1], RIGHT);
+    }
 
     SDL_Event event;
     // grab the SDL even (this will be keys etc)
@@ -629,16 +642,33 @@ int main()
         case SDLK_SPACE :
         {
           // Checking if a projectile already exists (is shot and still flying) as we restrict the amount of simultanious projectiles to one.
-          if(!projectileActive && !playerDead)
+          if(!projectileActive[0] && !playerDead[0])
           {
             // If no projectile exists, registers the current x and y position of the spaceship,
             // to get the coordinates from where the projectile should launch
-            projectile.x = spaceShip.x+(SPRITEWIDTH/2-1);
-            projectile.y = spaceShip.y;
+            projectile[0].x = spaceShip[0].x+(SPRITEWIDTH/2-1);
+            projectile[0].y = spaceShip[0].y;
 
             // Now that the projectile is about to shoot, change the projectileActive to true to prevent more projectiles to be shot
             // at the same time
-            projectileActive = 1;
+            projectileActive[0] = 1;
+            playSound(shoot, 3, 0);
+          }
+          break;
+        }
+        case SDLK_LSHIFT :
+        {
+          // Checking if a projectile already exists (is shot and still flying) as we restrict the amount of simultanious projectiles to one.
+          if(!projectileActive[1] && !playerDead[1] && selection)
+          {
+            // If no projectile exists, registers the current x and y position of the spaceship,
+            // to get the coordinates from where the projectile should launch
+            projectile[1].x = spaceShip[1].x+(SPRITEWIDTH/2-1);
+            projectile[1].y = spaceShip[1].y;
+
+            // Now that the projectile is about to shoot, change the projectileActive to true to prevent more projectiles to be shot
+            // at the same time
+            projectileActive[1] = 1;
             playSound(shoot, 3, 0);
           }
           break;
@@ -657,70 +687,73 @@ int main()
     SDL_RenderCopy(ren, shieldTexture[i], NULL, &shields[i]);
 
   // Check if projectile has been shot
-  if(projectileActive)
+  for(int p = 0; p < selection+1; ++p)
   {
-    // Check the projectile reaches the top of the screen and destroy it
-    if(projectile.y <= 0+infoLine.y+infoLine.h)
+    if(projectileActive[p])
     {
-      // Assign some variables needed for the "explosion" of the projectile
-      // As the width of the explosion if different from the projectiles width, we're gonna move the x coordinate of the explosion
-      // half the sprites width to left
-      projectileBoom.x = projectile.x - SPRITEWIDTH/2;
-
-      // Activate the variable determining that an explosion should happen
-      explodeP = 1;
-      projectileActive = 0;
-    }
-
-    // Pass the stuff needed to display and move the projectile to the function
-    shootPewPew(ren, &projectile);
-
-    if(SDL_HasIntersection(&alien.pos, &projectile) && alien.active)
-    {
-      // If the projectile hits a target, destroy the projectile and change the frame of that specific invader
-      // to 3 which equals to the explosion "animation", the actual destroyal of the object happens later when the explosion is complete.
-      alien.frame = 1;
-      Mix_Pause(4);
-      projectileActive = 0;
-      score += 100;
-      sprintf(thescore, "Score: %04i", score);
-      if(lives[0] < '9')
+      // Check the projectile reaches the top of the screen and destroy it
+      if(projectile[p].y <= 0+infoLine.y+infoLine.h)
       {
-        ++lives[0];
-        livesTexture = textureFromText(ren, font, lives);
+        // Assign some variables needed for the "explosion" of the projectile
+        // As the width of the explosion if different from the projectiles width, we're gonna move the x coordinate of the explosion
+        // half the sprites width to left
+        projectileBoom.x = projectile[p].x - SPRITEWIDTH/2;
+
+        // Activate the variable determining that an explosion should happen
+        explodeP = 1;
+        projectileActive[p] = 0;
       }
-      else
-        score += 500;
-      SDL_QueryTexture(livesTexture, NULL, NULL, &livesHolder.w, &livesHolder.h);
-      scoreTexture = textureFromText(ren, font, thescore);
-      playSound(invaderkilled, 2, 0);
-    }
 
-    // Checks if a shield has been shot
-    for(int i = 0; i < 4; ++i)
-    {
-      // Compensating for the projectile speed, i.e. the "skips" that it does by moving so fast
-      for(int pSC = projectile.h; pSC < PROJECTILESPEED+projectile.h; ++pSC)
+      // Pass the stuff needed to display and move the projectile to the function
+      shootPewPew(ren, &projectile[p]);
+
+      if(SDL_HasIntersection(&alien.pos, &projectile[p]) && alien.active)
       {
-        // Using this compensated "projectile" that's not rendered as the colliding one and store the coordinates in a separate "collision rect"
-        SDL_Rect collision;
-        SDL_Rect pSCprojectile = {projectile.x, projectile.y+pSC, projectile.w, projectile.h};
-        if(SDL_HasIntersection(&pSCprojectile, &shields[i]))
+        // If the projectile hits a target, destroy the projectile and change the frame of that specific invader
+        // to 3 which equals to the explosion "animation", the actual destroyal of the object happens later when the explosion is complete.
+        alien.frame = 1;
+        Mix_Pause(4);
+        projectileActive[p] = 0;
+        score += 100;
+        sprintf(thescore, "Score: %04i", score);
+        if(lives[p][0] < '9')
         {
-          // Store the coordinates here and pass on to the function that handles the destruction of the shield, also checks if the part we hit is not destroyed
-          SDL_IntersectRect(&pSCprojectile, &shields[i], &collision);
-          colX = (collision.x - shields[i].x) / (shields[i].w/shieldSurface[i]->w);
-          colY = (collision.y - shields[i].y) / (shields[i].h/shieldSurface[i]->h);
-          if(pixelActive(shieldSurface[i], colX, colY) == 0x0000FF00)
+          ++lives[p][0];
+          livesTexture[p] = textureFromText(ren, font, lives[p]);
+        }
+        else
+          score += 500;
+        SDL_QueryTexture(livesTexture[p], NULL, NULL, &livesHolder[p].w, &livesHolder[p].h);
+        scoreTexture = textureFromText(ren, font, thescore);
+        playSound(invaderkilled, 2, 0);
+      }
+
+      // Checks if a shield has been shot
+      for(int i = 0; i < 4; ++i)
+      {
+        // Compensating for the projectile speed, i.e. the "skips" that it does by moving so fast
+        for(int pSC = projectile[p].h; pSC < PROJECTILESPEED+projectile[p].h; ++pSC)
+        {
+          // Using this compensated "projectile" that's not rendered as the colliding one and store the coordinates in a separate "collision rect"
+          SDL_Rect collision;
+          SDL_Rect pSCprojectile = {projectile[p].x, projectile[p].y+pSC, projectile[p].w, projectile[p].h};
+          if(SDL_HasIntersection(&pSCprojectile, &shields[i]))
           {
-            projectileActive = 0;
-            editPixel(shieldSurface[i], colX, colY, 0);
-            shieldTexture[i] = SDL_CreateTextureFromSurface(ren, shieldSurface[i]);
+            // Store the coordinates here and pass on to the function that handles the destruction of the shield, also checks if the part we hit is not destroyed
+            SDL_IntersectRect(&pSCprojectile, &shields[i], &collision);
+            colX = (collision.x - shields[i].x) / (shields[i].w/shieldSurface[i]->w);
+            colY = (collision.y - shields[i].y) / (shields[i].h/shieldSurface[i]->h);
+            if(pixelActive(shieldSurface[i], colX, colY) == 0x0000FF00)
+            {
+              projectileActive[p] = 0;
+              editPixel(shieldSurface[i], colX, colY, 0);
+              shieldTexture[i] = SDL_CreateTextureFromSurface(ren, shieldSurface[i]);
+            }
           }
         }
       }
-    }
 
+    }
   }
 
   // Loop through the invaders to check various things
@@ -728,30 +761,33 @@ int main()
   {
     for(int c=0; c<COLS; ++c)
     {
-      if(projectileActive)
+      for(int p = 0; p < selection+1; ++p)
       {
-        // Check if the projectile collides with any of 'em
-        if(SDL_HasIntersection(&invaders[r][c].pos, &projectile) && invaders[r][c].active)
+        if(projectileActive[p])
         {
-          // If the projectile hits a target, destroy the projectile and change the frame of that specific invader
-          // to 3 which equals to the explosion "animation", the actual destroyal of the object happens later when the explosion is complete.
-          projectileActive = 0;
-          invaders[r][c].frame = 3;
-          score += 10*(invaders[r][c].type+1);
-          sprintf(thescore, "Score: %04i", score);
-          scoreTexture = textureFromText(ren, font, thescore);
-          playSound(invaderkilled, 2, 0);
-          ++invaderskilled;
+          // Check if the projectile collides with any of 'em
+          if(SDL_HasIntersection(&invaders[r][c].pos, &projectile[p]) && invaders[r][c].active)
+          {
+            // If the projectile hits a target, destroy the projectile and change the frame of that specific invader
+            // to 3 which equals to the explosion "animation", the actual destroyal of the object happens later when the explosion is complete.
+            projectileActive[p] = 0;
+            invaders[r][c].frame = 3;
+            score += 10*(invaders[r][c].type+1);
+            sprintf(thescore, "Score: %04i", score);
+            scoreTexture = textureFromText(ren, font, thescore);
+            playSound(invaderkilled, 2, 0);
+            ++invaderskilled;
+          }
         }
-      }
 
-      // Check if an invader hits the player or reaches the ground => game over
-      if((SDL_HasIntersection(&invaders[r][c].pos, &spaceShip) && invaders[r][c].active) ||
-         (invaders[r][c].pos.y >= bottomLine.y-SPRITEHEIGHT && invaders[r][c].active))
-      {
-        gameover = 1;
-        if(highscore < score)
-          highscore = score;
+        // Check if an invader hits the player or reaches the ground => game over
+        if((SDL_HasIntersection(&invaders[r][c].pos, &spaceShip[p]) && invaders[r][c].active) ||
+           (invaders[r][c].pos.y >= bottomLine.y-SPRITEHEIGHT && invaders[r][c].active))
+        {
+          gameover = 1;
+          if(highscore < score)
+            highscore = score;
+        }
       }
     }
   }
@@ -812,21 +848,25 @@ int main()
       if(invaderProjectile[i].y > bottomLine.y-invaderProjectile[i].h)
         invaderProjectileActive[i] = 0;
 
-      // Checks if the projectile hits the player and the player is not currently "dead" in an explosion sequence
-      if(SDL_HasIntersection(&spaceShip, &invaderProjectile[i]) && !playerDead)
+      for(int p = 0; p < selection+1; ++p)
       {
-        // Destroys the projectile, starts the player explosion sequence, decreases the amount of lives and plays the explosion sound
-        invaderProjectileActive[i] = 0;
-        playerDead = 1;
-        --lives[0];
-        livesTexture = textureFromText(ren, font, lives);
-        if(lives[0] == '0')
+        // Checks if the projectile hits the player and the player is not currently "dead" in an explosion sequence
+        if(SDL_HasIntersection(&spaceShip[p], &invaderProjectile[i]) && !playerDead[p])
         {
-          if(highscore < score)
-            highscore = score;
+          // Destroys the projectile, starts the player explosion sequence, decreases the amount of lives and plays the explosion sound
+          invaderProjectileActive[i] = 0;
+          playerDead[p] = 1;
+          --lives[p][0];
+          livesTexture[p] = textureFromText(ren, font, lives[p]);
+          if(lives[0][0] == '0' && lives[1][0] == '0')
+          {
+            if(highscore < score)
+              highscore = score;
+          }
+          playSound(explosion, 4, 0);
         }
-        playSound(explosion, 4, 0);
       }
+
 
       // Loops through the shields and checks if a projectile shot by an invader hits any one of 'em, if so then record the coordinates and check
       // if that part of the shield is not already destroyed. Continue to the shield destroyal stuff
@@ -864,9 +904,24 @@ int main()
   updateInvaders(invaders, &gameSpeed, &currentFrame, actInvaderInRow, level);
   drawInvaders(ren, tex, invaders, currentFrame);
 
-  // Checks if player still has lives left
-  if(playerDead != 2)
-    drawSpaceShip(ren, tex, &spaceShip, &playerDead, lives, &gameover);
+  // Checks if players still have lives left
+  if(playerDead[0] != 2)
+    drawSpaceShip(ren, tex, &spaceShip[0], &playerDead[0], lives[0]);
+  if(playerDead[1] != 2 && selection)
+    drawSpaceShip(ren, tex, &spaceShip[1], &playerDead[1], lives[1]);
+
+  if(playerDead[0] == 2)
+  {
+    if(selection)
+    {
+      if(playerDead[1] == 2)
+        gameover = 1;
+    }
+    else
+    {
+      gameover = 1;
+    }
+  }
 
   //drawSpaceShip(ren, tex, &spaceShip2, &playerDead, lives, &gameover);
 
@@ -881,9 +936,13 @@ int main()
   // Render score, lives and level
   SDL_RenderCopy(ren, scoreTexture, NULL, &scoreHolder);
   SDL_RenderCopy(ren, highscoreTexture, NULL, &highscoreHolder);
-  SDL_RenderCopy(ren, livesTexture, NULL, &livesHolder);
   SDL_RenderCopy(ren, levelTexture, NULL, &levelHolder);
-  renderLives(ren, tex, lives);
+
+  for(int i = 0; i < selection+1; ++i)
+  {
+    SDL_RenderCopy(ren, livesTexture[i], NULL, &livesHolder[i]);
+    renderLives(ren, tex, lives[i], i, selection);
+  }
 
   // Loop and run the background music based on the current gamespeed
   playMusic(gameSpeed, music);
@@ -986,7 +1045,7 @@ void moveSpaceShip(SDL_Rect *spaceShip, int moveDir)
   }
 }
 
-void drawSpaceShip(SDL_Renderer *ren, SDL_Texture *tex, SDL_Rect *spaceShip, int *playerDead, char *lives, int *gameover)
+void drawSpaceShip(SDL_Renderer *ren, SDL_Texture *tex, SDL_Rect *spaceShip, int *playerDead, char *lives)
 {
   // Initialize the sprite rect, the explosion timer and the explosion frame stuff
   SDL_Rect sS_sprite;
@@ -1045,7 +1104,6 @@ void drawSpaceShip(SDL_Renderer *ren, SDL_Texture *tex, SDL_Rect *spaceShip, int
     else
     {
       *playerDead = 2;
-      *gameover = 1;
     }
   }
 
@@ -1335,7 +1393,7 @@ void updateInvaders(Invader invaders[ROWS][COLS], int *gameSpeed, int *currentFr
   }
 }
 
-void renderLives(SDL_Renderer *ren, SDL_Texture *tex, char *lives)
+void renderLives(SDL_Renderer *ren, SDL_Texture *tex, char *lives, int player, int players)
 {
   SDL_Rect livesSprite;
   livesSprite.x = 131;
@@ -1351,7 +1409,16 @@ void renderLives(SDL_Renderer *ren, SDL_Texture *tex, char *lives)
   SDL_SetTextureColorMod(tex, 35, 255, 0);
   for(int i = '1'; i < lives[0]; ++i)
   {
-    livesTextHolder.x = 25 * ((i%49)+1)+((i%49)*15);
+    if(players)
+    {
+      if(player)
+        livesTextHolder.x = 25 * ((i%49)+1)+((i%49)*15);
+      else
+        livesTextHolder.x = WIDTH - (25 * ((i%49)+1)+((i%49)*15) + SPRITEWIDTH);
+    }
+    else
+      livesTextHolder.x = 25 * ((i%49)+1)+((i%49)*15);
+
     SDL_RenderCopy(ren, tex, &livesSprite, &livesTextHolder);
   }
   SDL_SetTextureColorMod(tex, 255, 255, 255);
