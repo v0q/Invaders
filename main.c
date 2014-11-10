@@ -60,6 +60,8 @@ int main()
   alien.pos.w=SPRITEWIDTH+(SPRITEWIDTH/2);
   alien.pos.h=SPRITEHEIGHT;
 
+  FILE *hsFile;
+
   // Create a variable that records the key presses (continuous)
   const Uint8 *keystate = SDL_GetKeyboardState(NULL);
 
@@ -196,8 +198,17 @@ int main()
   p2keysHolder.h = 2*137/3;
 
   int score = 0;
-  int highscore = 0;
+  int encryptkey = 123456789;
+  char enchighscore[8] = {0};
+  int highscore;
+  hsFile = fopen(".highscore", "r");
+  fscanf(hsFile, "%s", enchighscore);
+  fclose(hsFile);
+
+  highscore = (int)(strtol(enchighscore, NULL, 16)^encryptkey);
+
   int level = 1;
+
   // Making it possible for the variable to be passed to a string that'll be used for the drawing of the text
   char thescore[12] = {0};
   sprintf(thescore, "Score: %04i", score);
@@ -208,10 +219,7 @@ int main()
   char thelevel[9] = {0};
   sprintf(thelevel, "Level: %i", level);
 
-
   char lives[2][2] = {"3", "3"};
-//  lives[0][0] = '3';
-//  lives[1][0] = '3';
 
   // Initialize TTF
   if(TTF_Init() == -1)
@@ -621,6 +629,12 @@ int main()
         sprintf(thescore, "Score: %04i", score);
         scoreTexture = textureFromText(ren, font, thescore);
 
+        hsFile = fopen(".highscore", "r");
+        fscanf(hsFile, "%s", enchighscore);
+        fclose(hsFile);
+
+        highscore = (int)(strtol(enchighscore, NULL, 16)^encryptkey);
+
         sprintf(thehighscore, "High score: %04i", highscore);
         highscoreTexture = textureFromText(ren, font, thehighscore);
         fresh = 0;
@@ -815,7 +829,12 @@ int main()
         {
           gameover = 1;
           if(highscore < score)
-            highscore = score;
+          {
+            sprintf(enchighscore, "%x", score^encryptkey);
+            hsFile = fopen(".highscore", "w+");
+            fprintf(hsFile, "%s", enchighscore);
+            fclose(hsFile);
+          }
         }
       }
     }
@@ -890,10 +909,31 @@ int main()
           playerDead[p] = 1;
           --lives[p][0];
           livesTexture[p] = textureFromText(ren, font, lives[p]);
-          if(lives[0][0] == '0' && lives[1][0] == '0')
+          if(lives[0][0] == '0')
           {
-            if(highscore < score)
-              highscore = score;
+            if(selection)
+            {
+              if(lives[1][0] == '0')
+              {
+                if(highscore < score)
+                {
+                  sprintf(enchighscore, "%x", score^encryptkey);
+                  hsFile = fopen(".highscore", "w+");
+                  fprintf(hsFile, "%s", enchighscore);
+                  fclose(hsFile);
+                }
+              }
+            }
+            else
+            {
+              if(highscore < score)
+              {
+                sprintf(enchighscore, "%x", score^encryptkey);
+                hsFile = fopen(".highscore", "w+");
+                fprintf(hsFile, "%s", enchighscore);
+                fclose(hsFile);
+              }
+            }
           }
           playSound(explosion, 4, 0);
         }

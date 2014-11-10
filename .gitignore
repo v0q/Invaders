@@ -3,3 +3,4 @@ Makefile
 *.pro.user
 Invaders
 *.qmake*
+.DS_Store
