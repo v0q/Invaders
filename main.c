@@ -1030,7 +1030,7 @@ int main()
     anykeyHolder.y = gameoverHolder.y+gameoverHolder.h;
 
     // Start the timer and after 50 frames move on to clearing the screen and rendering the game over text
-    if(loadNewScreen <= 50)
+    if(loadNewScreen <= 150)
       ++loadNewScreen;
 
     if(loadNewScreen > 50)
@@ -1048,7 +1048,7 @@ int main()
             case SDLK_ESCAPE: quit = 1; break;
             default:
             {
-              if(loadNewScreen > 50)
+              if(loadNewScreen >= 150)
               {
                 newstart = 1;
                 fresh = 1;
