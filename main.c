@@ -28,7 +28,7 @@ void moveSpaceShip(SDL_Rect *spaceShip, int moveDir);
 void drawSpaceShip(SDL_Renderer *ren, SDL_Texture *sStexture, SDL_Rect *spaceShip, int *playerDead, char *lives, int player);
 void wooAlien(SDL_Renderer *ren, SDL_Texture *tex, Invader *alien, int direction, Mix_Chunk *ufosound);
 
-void shootPewPew(SDL_Renderer *ren, SDL_Rect *projectile);
+void shootPewPew(SDL_Renderer *ren, SDL_Rect *projectile, int level);
 void explodeProjectile(SDL_Renderer *ren, SDL_Rect *projectileBoom, SDL_Texture *tex, int *explodeP);
 
 void playSound(Mix_Chunk *sound, int chanToPlay, int loops);
@@ -748,7 +748,7 @@ int main()
       }
 
       // Pass the stuff needed to display and move the projectile to the function
-      shootPewPew(ren, &projectile[p]);
+      shootPewPew(ren, &projectile[p], level);
 
       if(SDL_HasIntersection(&alien.pos, &projectile[p]) && alien.active)
       {
@@ -1048,8 +1048,11 @@ int main()
             case SDLK_ESCAPE: quit = 1; break;
             default:
             {
+              if(loadNewScreen > 50)
+              {
                 newstart = 1;
                 fresh = 1;
+              }
             }
           }
           gameover = 0;
@@ -1168,7 +1171,7 @@ void drawSpaceShip(SDL_Renderer *ren, SDL_Texture *tex, SDL_Rect *spaceShip, int
   if(destroySequence == 50)
   {
     destroySequence = 0;
-    // As lives is a char, the comparison happens in ASCII values, thus we'll be creating a variable that holds the ascii value of 1
+    // As lives is a char, the comparison happens in ASCII values, thus we'll be creating a variable that holds the ascii value of 0
     int life = '0';
     if(lives[0] > life)
     {
@@ -1184,9 +1187,18 @@ void drawSpaceShip(SDL_Renderer *ren, SDL_Texture *tex, SDL_Rect *spaceShip, int
   SDL_RenderCopyEx(ren, tex, &sS_sprite, spaceShip, 0.0, NULL, flip);
 }
 
-void shootPewPew(SDL_Renderer *ren, SDL_Rect *projectile)
+void shootPewPew(SDL_Renderer *ren, SDL_Rect *projectile, int level)
 {
-  projectile->y -= PROJECTILESPEED;
+  int levelAdjustment;
+  switch(level)
+  {
+    case 6: levelAdjustment = PROJECTILESPEED/4; break;
+    case 7: levelAdjustment = PROJECTILESPEED/2; break;
+    case 8: levelAdjustment = 3*PROJECTILESPEED/4; break;
+    default: levelAdjustment = 0; break;
+  }
+
+  projectile->y -= PROJECTILESPEED+levelAdjustment;
 
   SDL_SetRenderDrawColor(ren, 255, 255, 255, 255);
   SDL_RenderFillRect(ren, projectile);
