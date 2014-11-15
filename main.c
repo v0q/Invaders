@@ -41,6 +41,18 @@ SDL_Texture *textureFromText(SDL_Renderer *ren, TTF_Font *font, char *textToRend
 void editPixel(SDL_Surface *shieldSurface, int x, int y, int PlorIn);
 Uint32 pixelActive(SDL_Surface *shieldSurface, int x, int y);
 
+void initFirstScreen(SDL_Rect *mainTextHolder, SDL_Rect *scoreTableHolder, SDL_Rect *alienPtsHolder,
+                     SDL_Rect *invT3Holder, SDL_Rect *invT2Holder, SDL_Rect *invT1Holder, SDL_Rect invader[4],
+                     SDL_Rect invaderSrcR[4], SDL_Rect *oneplayerHolder, SDL_Rect *twoplayersHolder, SDL_Rect *selectRect,
+                     SDL_Rect *p1keysHolder, SDL_Rect *p2keysHolder, SDL_Rect *gameoverHolder, SDL_Rect *anykeyHolder,
+                     SDL_Rect *scoreHolder, SDL_Rect *highscoreHolder, SDL_Rect *levelHolder,
+
+                     SDL_Texture *mainTextTexture, SDL_Texture *scoreTableTexture, SDL_Texture *alienPtsTexture,
+                     SDL_Texture *invT3Texture, SDL_Texture *invT2Texture, SDL_Texture *invT1Texture,
+                     SDL_Texture *onePTexture, SDL_Texture *twoPtexture, SDL_Texture *gameoverTexture, SDL_Texture *anykeyTexture,
+                     SDL_Texture *scoreTexture, SDL_Texture *highscoreTexture, SDL_Texture *levelTexture,
+
+                     int currentSelectionCoords[2]);
 
 int main()
 {
@@ -130,32 +142,15 @@ int main()
   int gameover = 0;
   int loadNewScreen = 1;
   int playerDead[2] = {0};
-  int startgame = 0;
   int colX = 0;
   int colY = 0;
   int newstart = 0;
   int fresh = 0;
   int invaderskilled = 0;
 
-  // Main menu stuff start
   int moveOn = 0;
   int currentSelectionCoords[2];
   int selection = 0;
-
-  char mainText[] = "Space Invaders";
-  char scoreTable[] = "*Score Advance Table*";
-  char alienPts[] = "=? Mystery";
-  char invT3[] = "=30 Points";
-  char invT2[] = "=20 Points";
-  char invT1[] = "=10 Points";
-  char oneplayer[] = "1  player";
-  char twoplayers[] = "2  players";
-
-  // Main menu stuff end
-
-
-  char thegameover[] = "Game Over";
-  char pressanykey[] = "Press any key to continue";
 
   for(int i = 0; i < COLS; ++i)
   {
@@ -196,30 +191,6 @@ int main()
 
   p2keysHolder.w = 2*226/3;
   p2keysHolder.h = 2*137/3;
-
-  int score = 0;
-  int encryptkey = 123456789;
-  char enchighscore[8] = {0};
-  int highscore;
-  hsFile = fopen(".highscore", "r");
-  fscanf(hsFile, "%s", enchighscore);
-  fclose(hsFile);
-
-  highscore = (int)(strtol(enchighscore, NULL, 16)^encryptkey);
-
-  int level = 1;
-
-  // Making it possible for the variable to be passed to a string that'll be used for the drawing of the text
-  char thescore[12] = {0};
-  sprintf(thescore, "Score: %04i", score);
-
-  char thehighscore[17] = {0};
-  sprintf(thehighscore, "High score: %04i", highscore);
-
-  char thelevel[9] = {0};
-  sprintf(thelevel, "Level: %i", level);
-
-  char lives[2][2] = {"3", "3"};
 
   // Initialize TTF
   if(TTF_Init() == -1)
@@ -328,26 +299,6 @@ int main()
   SDL_FreeSurface(p1keys);
   SDL_FreeSurface(p2keys);
 
-  // Initialize the score stuff
-  SDL_Texture *scoreTexture, *highscoreTexture, *livesTexture[2], *levelTexture;
-
-  scoreTexture = textureFromText(ren, font, thescore);
-  SDL_QueryTexture(scoreTexture, NULL, NULL, &scoreHolder.w, &scoreHolder.h);
-
-  highscoreTexture = textureFromText(ren, font, thehighscore);
-  SDL_QueryTexture(highscoreTexture, NULL, NULL, &highscoreHolder.w, &highscoreHolder.h);
-  highscoreHolder.x = (WIDTH-highscoreHolder.w)/2;
-
-  for(int i = 0; i < 2; ++i)
-  {
-    livesTexture[i] = textureFromText(ren, font, lives[i]);
-    SDL_QueryTexture(livesTexture[i], NULL, NULL, &livesHolder[i].w, &livesHolder[i].h);
-  }
-
-  levelTexture = textureFromText(ren, font, thelevel);
-  SDL_QueryTexture(levelTexture, NULL, NULL, &levelHolder.w, &levelHolder.h);
-  levelHolder.x = WIDTH-5-levelHolder.w;
-
   // Initializing shield textures
   SDL_Surface *shieldSurface[4];
   SDL_Texture *shieldTexture[4];
@@ -363,130 +314,101 @@ int main()
     shieldTexture[i] = SDL_CreateTextureFromSurface(ren, shieldSurface[i]);
   }
 
-  // Initializing the rect holders for game over and press any key textures
-  SDL_Rect gameoverHolder;
-  SDL_Rect anykeyHolder;
 
-  // Initializing the textures
-  SDL_Texture *gameoverTexture;
-  SDL_Texture *anykeyTexture;
+  // ---------------------------------------------------------
+  // --------------- INIT TEXTURES ETC START -----------------
+  // ---------------------------------------------------------
 
-  // Creating the textures by passing the required data to the function that creates textures from text
-  gameoverTexture = textureFromText(ren, bigfont, thegameover);
-  anykeyTexture = textureFromText(ren, font, pressanykey);
+    // Here we're just initializing the "variables" to be used for the start menus etc. (Game Over and Press any key... stuff also initialized and declared here)
+    SDL_Rect mainTextHolder, scoreTableHolder, alienPtsHolder, invT3Holder, invT2Holder, invT1Holder,
+             invader[4], invaderSrcR[4], oneplayerHolder, twoplayersHolder, selectRect, gameoverHolder, anykeyHolder;
+    SDL_Texture *mainTextTexture, *scoreTableTexture, *alienPtsTexture, *invT3Texture, *invT2Texture, *invT1Texture,
+                *onePTexture, *twoPtexture, *gameoverTexture, *anykeyTexture, *scoreTexture, *highscoreTexture, *livesTexture[2], *levelTexture;
 
-  // Getting the width and height for the rect holders from the texture
-  SDL_QueryTexture(gameoverTexture, NULL, NULL, &gameoverHolder.w, &gameoverHolder.h);
-  SDL_QueryTexture(anykeyTexture, NULL, NULL, &anykeyHolder.w, &anykeyHolder.h);
+    // Strings that will be used to create the corresponding textures
+    char mainText[] = "Space Invaders";
+    char scoreTable[] = "*Score Advance Table*";
+    char alienPts[] = "=? Mystery";
+    char invT3[] = "=30 Points";
+    char invT2[] = "=20 Points";
+    char invT1[] = "=10 Points";
+    char oneplayer[] = "1  player";
+    char twoplayers[] = "2  players";
+    char thegameover[] = "Game Over";
+    char pressanykey[] = "Press any key to continue";
+    int level = 1;
+    int score = 0;
 
-  // Setting the physical position for the holders
-  gameoverHolder.x = (WIDTH-gameoverHolder.w)/2;
-  gameoverHolder.y = (HEIGHT-gameoverHolder.h)/2;
+    // Game related strings like scores, level and lives
+    // Sprintf is used to combine the strings and integers
+    char thelevel[9] = {0};
+    sprintf(thelevel, "Level: %i", level);
+    char thescore[12] = {0};
+    sprintf(thescore, "Score: %04i", score);
+    char lives[2][2] = {"3", "3"};
 
-  anykeyHolder.x = (WIDTH-anykeyHolder.w)/2;
-  anykeyHolder.y = (HEIGHT-gameoverHolder.h)/2;
+    // We're using a simple "encryption" to encrypt the highscores so that editing 'em manually takes a little effort
+    // We'll be using encryptkey as a bitwise XOR to "scramble" the highscore a little, also the highscore is stored as a hexadecimal to
+    // make it just a tad bit harder to read
+    int encryptkey = 123456789;
+    char enchighscore[8] = {0};
+    int highscore;
+    // Opening the file where the highscore is stored, note that as the file is ".xxx" it's handled as a sort-of a system file
+    // thus hidden in most machines, this is again done to make it a bit harder to manually edit the high scores.
+    hsFile = fopen(".highscore", "r");
+    fscanf(hsFile, "%s", enchighscore);
+    fclose(hsFile);
 
+    // Here we'll turn the "encrypted" highscore back to a readable integer by reverting it back with yet another XOR using the encryptkey
+    highscore = (int)(strtol(enchighscore, NULL, 16)^encryptkey);
+    char thehighscore[17] = {0};
+    sprintf(thehighscore, "High score: %04i", highscore);
 
-  // Initializing the first screen texts etc.
+    // Next we're using the function textureFromText() to create textures from the strings declared above
+    // Apparently SDL doesn't like to pass the SDL_Textures around, thus we're "forced" to assign/declare the textures
+    // inside the function we'll be using them in.
+    mainTextTexture = textureFromText(ren, bigfont, mainText);
+    scoreTableTexture = textureFromText(ren, font, scoreTable);
+    alienPtsTexture = textureFromText(ren, font, alienPts);
+    invT3Texture = textureFromText(ren, font, invT3);
+    invT2Texture = textureFromText(ren, font, invT2);
+    invT1Texture = textureFromText(ren, font, invT1);
+    onePTexture = textureFromText(ren, font, oneplayer);
+    twoPtexture = textureFromText(ren, font, twoplayers);
+    gameoverTexture = textureFromText(ren, bigfont, thegameover);
+    anykeyTexture = textureFromText(ren, font, pressanykey);
+    scoreTexture = textureFromText(ren, font, thescore);
+    levelTexture = textureFromText(ren, font, thelevel);
+    highscoreTexture = textureFromText(ren, font, thehighscore);
 
-  SDL_Rect mainTextHolder, scoreTableHolder, alienPtsHolder, invT3Holder, invT2Holder, invT1Holder, invader[4], invaderSrcR[4], oneplayerHolder, twoplayersHolder, selectRect;
-  SDL_Texture *mainTextTexture, *scoreTableTexture, *alienPtsTexture, *invT3Texture, *invT2Texture, *invT1Texture, *onePTexture, *twoPtexture;
+    // The texture for the lives will be created here (also the position for the holder)
+    // as passing textures around and assigning 'em elsewhere has proven tricky so well loop trough the textures
+    // and texture holder for both players
+    for(int i = 0; i < 2; ++i)
+    {
+      livesTexture[i] = textureFromText(ren, font, lives[i]);
+      SDL_QueryTexture(livesTexture[i], NULL, NULL, &livesHolder[i].w, &livesHolder[i].h);
+    }
 
-  selectRect.h = 10;
-  selectRect.w = 10;
+    // Here we'll pass all the texture holders and the textures to a function that will
+    // get the texture dimensions and adjust/assign the positions and dimensions for the texture holders accordingly
+    initFirstScreen(&mainTextHolder, &scoreTableHolder, &alienPtsHolder, &invT3Holder, &invT2Holder, &invT1Holder, invader, invaderSrcR,
+                    &oneplayerHolder, &twoplayersHolder, &selectRect, &p1keysHolder, &p2keysHolder, &gameoverHolder, &anykeyHolder,
+                    &scoreHolder, &highscoreHolder, &levelHolder,
+                    mainTextTexture, scoreTableTexture, alienPtsTexture, invT3Texture, invT2Texture, invT1Texture, onePTexture, twoPtexture,
+                    gameoverTexture, anykeyTexture, scoreTexture, highscoreTexture, levelTexture,
+                    currentSelectionCoords);
 
-  invaderSrcR[2].x=292;
-  invaderSrcR[2].y=0;
-  invaderSrcR[2].w=80;
-  invaderSrcR[2].h=80;
+  // ---------------------------------------------------------
+  // --------------- INIT TEXTURES ETC END -------------------
+  // ---------------------------------------------------------
 
-  invaderSrcR[1].x=145;
-  invaderSrcR[1].y=0;
-  invaderSrcR[1].w=111;
-  invaderSrcR[1].h=80;
-
-  invaderSrcR[0].x=140;
-  invaderSrcR[0].y=120;
-  invaderSrcR[0].w=120;
-  invaderSrcR[0].h=80;
-
-  invaderSrcR[3].x = 0;
-  invaderSrcR[3].y = 616;
-  invaderSrcR[3].w = 125;
-  invaderSrcR[3].h = 61;
-
-  mainTextTexture = textureFromText(ren, bigfont, mainText);
-  scoreTableTexture = textureFromText(ren, font, scoreTable);
-  alienPtsTexture = textureFromText(ren, font, alienPts);
-  invT3Texture = textureFromText(ren, font, invT3);
-  invT2Texture = textureFromText(ren, font, invT2);
-  invT1Texture = textureFromText(ren, font, invT1);
-  onePTexture = textureFromText(ren, font, oneplayer);
-  twoPtexture = textureFromText(ren, font, twoplayers);
-
-  SDL_QueryTexture(anykeyTexture, NULL, NULL, &anykeyHolder.w, &anykeyHolder.h);
-  SDL_QueryTexture(mainTextTexture, NULL, NULL, &mainTextHolder.w, &mainTextHolder.h);
-  SDL_QueryTexture(scoreTableTexture, NULL, NULL, &scoreTableHolder.w, &scoreTableHolder.h);
-  SDL_QueryTexture(alienPtsTexture, NULL, NULL, &alienPtsHolder.w, &alienPtsHolder.h);
-  SDL_QueryTexture(invT3Texture, NULL, NULL, &invT3Holder.w, &invT3Holder.h);
-  SDL_QueryTexture(invT2Texture, NULL, NULL, &invT2Holder.w, &invT2Holder.h);
-  SDL_QueryTexture(invT1Texture, NULL, NULL, &invT1Holder.w, &invT1Holder.h);
-  SDL_QueryTexture(onePTexture, NULL, NULL, &oneplayerHolder.w, &oneplayerHolder.h);
-  SDL_QueryTexture(twoPtexture, NULL, NULL, &twoplayersHolder.w, &twoplayersHolder.h);
-
-  mainTextHolder.x = (WIDTH-mainTextHolder.w)/2;
-  mainTextHolder.y = HEIGHT/4;
-
-  scoreTableHolder.x = (WIDTH-scoreTableHolder.w)/2;
-  oneplayerHolder.y = twoplayersHolder.y = scoreTableHolder.y = mainTextHolder.y + mainTextHolder.h + 75;
-
-  alienPtsHolder.x = (WIDTH-alienPtsHolder.w)/2;
-  invader[3].y = alienPtsHolder.y = scoreTableHolder.y + scoreTableHolder.h + 5;
-
-  invT3Holder.x = (WIDTH-invT3Holder.w)/2;
-  invader[2].y = invT3Holder.y = alienPtsHolder.y + alienPtsHolder.h + 5;
-
-  invT2Holder.x = (WIDTH-invT2Holder.w)/2;
-  invader[1].y = invT2Holder.y = invT3Holder.y + invT3Holder.h + 5;
-
-  invT1Holder.x = (WIDTH-invT1Holder.w)/2;
-  invader[0].y = invT1Holder.y = invT2Holder.y + invT2Holder.h + 5;
-
-  oneplayerHolder.x = WIDTH/2 - oneplayerHolder.w - oneplayerHolder.w/2;
-  twoplayersHolder.x = WIDTH/2 + oneplayerHolder.w/2;
-
-  currentSelectionCoords[0] = oneplayerHolder.x - selectRect.w*2;
-  currentSelectionCoords[1] = twoplayersHolder.x - selectRect.w*2;
-
-  selectRect.x = currentSelectionCoords[0];
-  selectRect.y = oneplayerHolder.y + oneplayerHolder.h/2 - 2*selectRect.h/3;
-
-  p1keysHolder.y = p2keysHolder.y = oneplayerHolder.y + 75;
-  p1keysHolder.x = WIDTH/2 - p1keysHolder.w - 50;
-  p2keysHolder.x = WIDTH/2 + 50;
-
-  for(int i = 0; i < 3; ++i)
-  {
-    invader[i].w = invT1Holder.h*(SPRITEWIDTH/SPRITEHEIGHT);
-    invader[i].h = invT1Holder.h;
-  }
-
-  invader[3].w = 3*invT1Holder.h*(invaderSrcR[3].w/invaderSrcR[3].h)/4;
-  invader[3].h = 3*invT1Holder.h/4;
-
-  invader[0].x = invT1Holder.x - invader[0].w - 5;
-  invader[1].x = invT1Holder.x - invader[1].w - 5;
-  invader[2].x = invT1Holder.x - invader[2].w - 5;
-  invader[3].x = alienPtsHolder.x - invader[3].w - 5;
-
-  anykeyHolder.x = (WIDTH-anykeyHolder.w)/2;
-  anykeyHolder.y = (HEIGHT-anykeyHolder.h)/2;
 
 // ---------------------------------------------------------
 // --------------- INITIALIZING STUFF END ------------------
 // ---------------------------------------------------------
 
-
+  int startgame = 0;
 
   while(!startgame)
   {
@@ -584,6 +506,7 @@ int main()
     }
     SDL_RenderPresent(ren);
   }
+
 
 
   // now we are going to loop forever, process the keys then draw
@@ -1719,3 +1642,218 @@ Uint32 pixelActive(SDL_Surface *shieldSurface, int x, int y)
   value = (Uint32 *)&index[(shieldSurface->pitch*y + shieldSurface->format->BytesPerPixel*x)];
   return *value;
 }
+
+void initFirstScreen(SDL_Rect *mainTextHolder, SDL_Rect *scoreTableHolder, SDL_Rect *alienPtsHolder,
+                     SDL_Rect *invT3Holder, SDL_Rect *invT2Holder, SDL_Rect *invT1Holder, SDL_Rect invader[4],
+                     SDL_Rect invaderSrcR[4], SDL_Rect *oneplayerHolder, SDL_Rect *twoplayersHolder, SDL_Rect *selectRect,
+                     SDL_Rect *p1keysHolder, SDL_Rect *p2keysHolder, SDL_Rect *gameoverHolder, SDL_Rect *anykeyHolder,
+                     SDL_Rect *scoreHolder, SDL_Rect *highscoreHolder, SDL_Rect *levelHolder,
+
+                     SDL_Texture *mainTextTexture, SDL_Texture *scoreTableTexture, SDL_Texture *alienPtsTexture,
+                     SDL_Texture *invT3Texture, SDL_Texture *invT2Texture, SDL_Texture *invT1Texture,
+                     SDL_Texture *onePTexture, SDL_Texture *twoPtexture, SDL_Texture *gameoverTexture, SDL_Texture *anykeyTexture,
+                     SDL_Texture *scoreTexture, SDL_Texture *highscoreTexture, SDL_Texture *levelTexture,
+
+                     int currentSelectionCoords[2])
+{
+
+  selectRect->h = 10;
+  selectRect->w = 10;
+
+  invaderSrcR[2].x = 292;
+  invaderSrcR[2].y = 0;
+  invaderSrcR[2].w = 80;
+  invaderSrcR[2].h = 80;
+
+  invaderSrcR[1].x = 145;
+  invaderSrcR[1].y = 0;
+  invaderSrcR[1].w = 111;
+  invaderSrcR[1].h = 80;
+
+  invaderSrcR[0].x = 140;
+  invaderSrcR[0].y = 120;
+  invaderSrcR[0].w = 120;
+  invaderSrcR[0].h = 80;
+
+  invaderSrcR[3].x = 0;
+  invaderSrcR[3].y = 616;
+  invaderSrcR[3].w = 125;
+  invaderSrcR[3].h = 61;
+
+  SDL_QueryTexture(mainTextTexture, NULL, NULL, &mainTextHolder->w, &mainTextHolder->h);
+  SDL_QueryTexture(scoreTableTexture, NULL, NULL, &scoreTableHolder->w, &scoreTableHolder->h);
+  SDL_QueryTexture(alienPtsTexture, NULL, NULL, &alienPtsHolder->w, &alienPtsHolder->h);
+  SDL_QueryTexture(invT3Texture, NULL, NULL, &invT3Holder->w, &invT3Holder->h);
+  SDL_QueryTexture(invT2Texture, NULL, NULL, &invT2Holder->w, &invT2Holder->h);
+  SDL_QueryTexture(invT1Texture, NULL, NULL, &invT1Holder->w, &invT1Holder->h);
+  SDL_QueryTexture(onePTexture, NULL, NULL, &oneplayerHolder->w, &oneplayerHolder->h);
+  SDL_QueryTexture(twoPtexture, NULL, NULL, &twoplayersHolder->w, &twoplayersHolder->h);
+  SDL_QueryTexture(scoreTexture, NULL, NULL, &scoreHolder->w, &scoreHolder->h);
+  SDL_QueryTexture(highscoreTexture, NULL, NULL, &highscoreHolder->w, &highscoreHolder->h);
+  SDL_QueryTexture(levelTexture, NULL, NULL, &levelHolder->w, &levelHolder->h);
+  SDL_QueryTexture(gameoverTexture, NULL, NULL, &gameoverHolder->w, &gameoverHolder->h);
+  SDL_QueryTexture(anykeyTexture, NULL, NULL, &anykeyHolder->w, &anykeyHolder->h);
+
+  mainTextHolder->x = (WIDTH-mainTextHolder->w)/2;
+  mainTextHolder->y = HEIGHT/4;
+
+  scoreTableHolder->x = (WIDTH-scoreTableHolder->w)/2;
+  oneplayerHolder->y = twoplayersHolder->y = scoreTableHolder->y = mainTextHolder->y + mainTextHolder->h + 75;
+
+  alienPtsHolder->x = (WIDTH-alienPtsHolder->w)/2;
+  invader[3].y = alienPtsHolder->y = scoreTableHolder->y + scoreTableHolder->h + 5;
+
+  invT3Holder->x = (WIDTH-invT3Holder->w)/2;
+  invader[2].y = invT3Holder->y = alienPtsHolder->y + alienPtsHolder->h + 5;
+
+  invT2Holder->x = (WIDTH-invT2Holder->w)/2;
+  invader[1].y = invT2Holder->y = invT3Holder->y + invT3Holder->h + 5;
+
+  invT1Holder->x = (WIDTH-invT1Holder->w)/2;
+  invader[0].y = invT1Holder->y = invT2Holder->y + invT2Holder->h + 5;
+
+  oneplayerHolder->x = WIDTH/2 - oneplayerHolder->w - oneplayerHolder->w/2;
+  twoplayersHolder->x = WIDTH/2 + oneplayerHolder->w/2;
+
+  currentSelectionCoords[0] = oneplayerHolder->x - selectRect->w*2;
+  currentSelectionCoords[1] = twoplayersHolder->x - selectRect->w*2;
+
+  selectRect->x = currentSelectionCoords[0];
+  selectRect->y = oneplayerHolder->y + oneplayerHolder->h/2 - 2*selectRect->h/3;
+
+  p1keysHolder->y = p2keysHolder->y = oneplayerHolder->y + 75;
+  p1keysHolder->x = WIDTH/2 - p1keysHolder->w - 50;
+  p2keysHolder->x = WIDTH/2 + 50;
+
+  for(int i = 0; i < 3; ++i)
+  {
+    invader[i].w = invT1Holder->h*(SPRITEWIDTH/SPRITEHEIGHT);
+    invader[i].h = invT1Holder->h;
+  }
+
+  invader[3].w = 3*invT1Holder->h*(invaderSrcR[3].w/invaderSrcR[3].h)/4;
+  invader[3].h = 3*invT1Holder->h/4;
+
+  invader[0].x = invT1Holder->x - invader[0].w - 5;
+  invader[1].x = invT1Holder->x - invader[1].w - 5;
+  invader[2].x = invT1Holder->x - invader[2].w - 5;
+  invader[3].x = alienPtsHolder->x - invader[3].w - 5;
+
+  levelHolder->x = WIDTH-5-levelHolder->w;
+  highscoreHolder->x = (WIDTH-highscoreHolder->w)/2;
+
+  // Setting the physical position for the holders
+  gameoverHolder->x = (WIDTH-gameoverHolder->w)/2;
+  gameoverHolder->y = (HEIGHT-gameoverHolder->h)/2;
+
+  anykeyHolder->x = (WIDTH-anykeyHolder->w)/2;
+  anykeyHolder->y = (HEIGHT-gameoverHolder->h)/2;
+
+}
+
+/*void firstScreen(SDL_Rect spaceShip[2], SDL_Rect livesHolder[2], int *selection, int *quit)
+{
+
+  // Main menu stuff start
+  int moveOn = 0;
+  int currentSelectionCoords[2];
+  int selection = 0;
+
+  while(!startgame)
+  {
+    SDL_Event event;
+    while (SDL_PollEvent(&event))
+    {
+      if (event.type == SDL_QUIT)
+      {
+        *quit = 1;
+        startgame = 1;
+      }
+      if (event.type == SDL_KEYDOWN)
+      {
+        switch (event.key.keysym.sym)
+        {
+          case SDLK_ESCAPE: *quit = 1; startgame = 1; break;
+          case SDLK_RETURN:
+          {
+            if(moveOn)
+            {
+              if(!selection)
+              {
+                //printf("1 Player\n");
+                startgame = 1;
+                spaceShip[0].x = (WIDTH-SPRITEWIDTH)/2;
+                livesHolder[0].x = 5;
+              }
+              else
+              {
+                //printf("2 Players\n");
+                startgame = 1;
+                spaceShip[0].x = 3*(WIDTH-SPRITEWIDTH)/4;
+                spaceShip[1].x = (WIDTH-SPRITEWIDTH)/4;
+                livesHolder[0].x = WIDTH-5-livesHolder[0].w;
+                livesHolder[1].x = 5;
+              }
+            }
+            else
+            {
+            moveOn = 1;
+            }
+            break;
+          }
+          case SDLK_RIGHT: case SDLK_LEFT:
+          {
+            if(moveOn)
+            {
+              if(!*selection)
+                ++*selection;
+              else
+                *selection = 0;
+
+              selectRect.x = currentSelectionCoords[*selection];
+            }
+            break;
+          }
+        }
+      }
+    }
+
+    SDL_SetRenderDrawColor(ren, 0, 0, 0, 255);
+    SDL_RenderClear(ren);
+    SDL_RenderCopy(ren, mainTextTexture, NULL, &mainTextHolder);
+    if(!moveOn)
+    {
+      SDL_RenderCopy(ren, scoreTableTexture, NULL, &scoreTableHolder);
+      SDL_RenderCopy(ren, alienPtsTexture, NULL, &alienPtsHolder);
+      SDL_RenderCopy(ren, invT3Texture, NULL, &invT3Holder);
+      SDL_RenderCopy(ren, invT2Texture, NULL, &invT2Holder);
+      SDL_RenderCopy(ren, invT1Texture, NULL, &invT1Holder);
+      for(int i = 0; i < 4; ++i)
+      {
+        SDL_RenderCopy(ren, tex, &invaderSrcR[i], &invader[i]);
+      }
+      //SDL_RenderCopy(ren, anykeyTexture, NULL, &anykeyHolder);
+    }
+    else
+    {
+      SDL_SetRenderDrawColor(ren, 255, 255, 255, 255);
+      SDL_RenderFillRect(ren, &selectRect);
+
+      if(selection)
+      {
+        p1keysHolder.x = WIDTH/2 - p1keysHolder.w - 50;
+        SDL_RenderCopy(ren, p2ktex, NULL, &p2keysHolder);
+      }
+      else
+      {
+        p1keysHolder.x = (WIDTH-p1keysHolder.w)/2;
+      }
+
+      SDL_RenderCopy(ren, p1ktex, NULL, &p1keysHolder);
+      SDL_RenderCopy(ren, onePTexture, NULL, &oneplayerHolder);
+      SDL_RenderCopy(ren, twoPtexture, NULL, &twoplayersHolder);
+    }
+    SDL_RenderPresent(ren);
+  }
+}
+*/
