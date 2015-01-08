@@ -1,38 +1,18 @@
-#include <SDL.h>
-#include <SDL_image.h>
-#include <SDL_mixer.h>
-#include <SDL_ttf.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <time.h>
-#include "Invader.h"
+#include "Definitions.h"
 #include "ExplosionPatterns.h"
-// the width of the screen taking into account the maze and block
-#define WIDTH 800
-// the height of the screen taking into account the maze and block
-#define HEIGHT 600
-#define ANIMATIONSEQUENCELENGTH 800
-#define INFOBOXHEIGHT 40
-#define FONTSIZE 16
-#define PROJECTILESPEED 16
-
-enum DIRECTION{LEFT,RIGHT};
+#include "Invader.h"
+#include "Defender.h"
+#include "Sounds.h"
 
 // Declaring the functions
-void initializeInvaders(Invader invaders[ROWS][COLS]);
-void updateInvaders(Invader invaders[ROWS][COLS], int *gameSpeed, int *currentFrame, int actInvaderInRow[COLS], int level);
-void drawInvaders(SDL_Renderer *ren,SDL_Texture *tex,Invader invaders[ROWS][COLS], int currentFrame);
-void invaderShootPewPew(SDL_Renderer *ren, SDL_Texture *tex, SDL_Rect *invaderProjectile);
 
-void moveSpaceShip(SDL_Rect *spaceShip, int moveDir);
-void drawSpaceShip(SDL_Renderer *ren, SDL_Texture *sStexture, SDL_Rect *spaceShip, int *playerDead, char *lives, int player);
-void wooAlien(SDL_Renderer *ren, SDL_Texture *tex, Invader *alien, int direction, Mix_Chunk *ufosound);
+void initializeShields(SDL_Rect shields[4]);
+void initializeScreenStuff( SDL_Rect *infoLine, SDL_Rect *bottomLine, SDL_Rect *screen, SDL_Rect *scoreHolder,
+                            SDL_Rect *highscoreHolder, SDL_Rect livesHolder[2], SDL_Rect *levelHolder,
+                            SDL_Rect *p1keysHolder, SDL_Rect *p2keysHolder);
 
-void shootPewPew(SDL_Renderer *ren, SDL_Rect *projectile, int level);
 void explodeProjectile(SDL_Renderer *ren, SDL_Rect *projectileBoom, SDL_Texture *tex, int *explodeP);
-
-void playSound(Mix_Chunk *sound, int chanToPlay, int loops);
-void playMusic(int gameSpeed, Mix_Chunk *music[4]);
 
 void renderLives(SDL_Renderer *ren, SDL_Texture *tex, char *lives, int player, int players);
 
@@ -60,85 +40,31 @@ int main()
 // -----------------------------------------------------------
 // --------------- INITIALIZING STUFF START ------------------
 // -----------------------------------------------------------
-  Invader invaders[ROWS][COLS];
-  initializeInvaders(invaders);
+  Invader invaders[ROWS][COLS], alien;
+  SDL_Rect spaceShip[2], projectile[2], projectileBoom[2];
+  SDL_Rect shields[4];
+  // "Screen" related stuff
+  SDL_Rect infoLine, bottomLine, screen, scoreHolder, highscoreHolder, livesHolder[2], levelHolder, p1keysHolder, p2keysHolder;
+  SDL_Rect invaderProjectile[COLS];
+  int actInvaderInRow[COLS], invaderProjectileActive[COLS];
 
-  Invader alien;
-  alien.active = 0;
-  alien.frame = 0;
-  alien.type = 0;
-  alien.pos.x=-SPRITEWIDTH;
-  alien.pos.y=INFOBOXHEIGHT+1;
-  alien.pos.w=SPRITEWIDTH+(SPRITEWIDTH/2);
-  alien.pos.h=SPRITEHEIGHT;
+  initializeInvaders(invaders, &alien, invaderProjectile, actInvaderInRow, invaderProjectileActive);
+  initializeDefender(spaceShip, projectile, projectileBoom);
+  initializeShields(shields);
+  initializeScreenStuff(&infoLine, &bottomLine, &screen, &scoreHolder, &highscoreHolder, livesHolder, &levelHolder, &p1keysHolder, &p2keysHolder);
 
   FILE *hsFile;
 
   // Create a variable that records the key presses (continuous)
   const Uint8 *keystate = SDL_GetKeyboardState(NULL);
 
-  // Initializing the "line" that separates the top info box from the play field
-  SDL_Rect infoLine;
-  infoLine.x = 0;
-  infoLine.y = INFOBOXHEIGHT;
-  infoLine.w = WIDTH;
-  infoLine.h = 5;
-
-  SDL_Rect bottomLine;
-  bottomLine.x = 0;
-  bottomLine.y = HEIGHT-30;
-  bottomLine.w = WIDTH;
-  bottomLine.h = 3;
-
-  // Initializing the spaceship "holders", positions and projectiles
-  SDL_Rect spaceShip[2], projectile[2];
-
-  for(int i = 0; i < 2; ++i)
-  {
-    spaceShip[i].y = HEIGHT-50;
-    spaceShip[i].w = SPRITEWIDTH;
-    spaceShip[i].h = 20;
-    projectile[i].x = 0;
-    projectile[i].y = 0;
-    projectile[i].w = 2;
-    projectile[i].h = 8;
-  }
-
-  // Initializing the box for projectile explosion
-  SDL_Rect projectileBoom[2];
-  projectileBoom[0].y = infoLine.y+infoLine.h;
-  projectileBoom[1].y = infoLine.y+infoLine.h;
-
-  SDL_Rect invaderProjectile[COLS];
-
-  SDL_Rect screen;
-  screen.x = 0;
-  screen.y = 0;
-  screen.w = WIDTH;
-  screen.h = HEIGHT;
-
-  SDL_Rect shield;
-  shield.w = 88;
-  shield.h = 64;
-  shield.y = bottomLine.y - shield.h*2;
-
-  SDL_Rect shields[4] = {shield, shield, shield, shield};
-
-  for(int i = 0; i < 4; ++i)
-  {
-    shields[i].x = (WIDTH-(shield.w*4))/8 + i*(shield.w+(WIDTH-(shield.w*4))/4);
-  }
-
   // Some variables used all around
-  initializeInvaders(invaders);
   int gameSpeed = 1;
   int projectileActive[2] = {0};
   int direction = 0;
   int explodeP[2] = {0};
   int currentFrame = 0;
   int quit=0;
-  int actInvaderInRow[COLS];
-  int invaderProjectileActive[COLS];
   int gameover = 0;
   int loadNewScreen = 1;
   int playerDead[2] = {0};
@@ -151,46 +77,6 @@ int main()
   int moveOn = 0;
   int currentSelectionCoords[2];
   int selection = 0;
-
-  for(int i = 0; i < COLS; ++i)
-  {
-    invaderProjectile[i].x = 0;
-    invaderProjectile[i].y = 0;
-    invaderProjectile[i].w = 6;
-    invaderProjectile[i].h = 18;
-    invaderProjectileActive[i] = 0;
-    actInvaderInRow[i] = 0;
-  }
-
-
-  // Initializing the stuff for the infobox
-  SDL_Rect scoreHolder, highscoreHolder, livesHolder[2], levelHolder, p1keysHolder, p2keysHolder;
-  scoreHolder.x = 5;
-  scoreHolder.y = INFOBOXHEIGHT/2 - FONTSIZE/2;
-  scoreHolder.w = 0;
-  scoreHolder.h = 0;
-
-  highscoreHolder.x = 0;
-  highscoreHolder.y = INFOBOXHEIGHT/2 - FONTSIZE/2;
-  highscoreHolder.w = 0;
-  highscoreHolder.h = 0;
-
-  for(int i = 0; i < 2; ++i)
-  {
-    livesHolder[i].w = 0;
-    livesHolder[i].h = 0;
-    livesHolder[i].y = bottomLine.y + FONTSIZE/2;
-  }
-
-  levelHolder.y = INFOBOXHEIGHT/2 - FONTSIZE/2;
-  levelHolder.w = 0;
-  levelHolder.h = 0;
-
-  p1keysHolder.w = 2*390/3;
-  p1keysHolder.h = 2*87/3;
-
-  p2keysHolder.w = 2*226/3;
-  p2keysHolder.h = 2*137/3;
 
   // Initialize TTF
   if(TTF_Init() == -1)
@@ -516,7 +402,7 @@ int main()
 
     if(newstart)
     {
-      initializeInvaders(invaders);
+      initializeInvaders(invaders, &alien, invaderProjectile, actInvaderInRow, invaderProjectileActive);
       gameSpeed = 1;
       currentFrame = 0;
       //playerDead[0] = 0;
@@ -885,7 +771,7 @@ int main()
   // If alien has spawned, pass the data to the function that moves and renders the alien (ufo)
   if(alien.active)
   {
-    wooAlien(ren, tex, &alien, direction, ufo_lowpitch);
+    moveAlien(ren, tex, &alien, direction, ufo_lowpitch);
   }
 
   // Check if all invaders have been killed and start a new game / level by re-initializing some of the variables that define
@@ -1008,138 +894,6 @@ int main()
   return 0;
 }
 
-void moveSpaceShip(SDL_Rect *spaceShip, int moveDir)
-{
-  // Movement stuff
-  switch(moveDir)
-  {
-    case LEFT:
-    {
-      // Stop the player from beying able to move past the left side of the screen
-      if(spaceShip->x > 0)
-      {
-        spaceShip->x -= 5;
-      }
-      else
-      {
-        spaceShip->x = 0;
-      }
-      break;
-    }
-    case RIGHT:
-    {
-      // Stop the player from beying able to move past the right side of the screen
-      if(spaceShip->x < WIDTH-SPRITEWIDTH)
-      {
-        spaceShip->x += 5;
-      }
-      else
-      {
-        spaceShip->x = WIDTH-SPRITEWIDTH;
-      }
-
-      break;
-    }
-  }
-}
-
-void drawSpaceShip(SDL_Renderer *ren, SDL_Texture *tex, SDL_Rect *spaceShip, int *playerDead, char *lives, int player)
-{
-  // Initialize the sprite rect, the explosion timer and the explosion frame stuff
-  SDL_Rect sS_sprite;
-  static int destroySequence = 0;
-  static int explosionSpriteTime = 0;
-  SDL_RendererFlip flip = SDL_FLIP_NONE;
-
-  if(!*playerDead)
-  {
-    // Sprite coordinates when player's not dead
-    sS_sprite.x = 131;
-    sS_sprite.y = 623;
-    sS_sprite.w = 73;
-    sS_sprite.h = 52;
-    if(player)
-      SDL_SetTextureColorMod(tex, 255, 0, 0);
-  }
-  else
-  {
-    // If player died, start the destroy sequence and set the length of it to be 50 frames
-    if(destroySequence%10 == 0)
-    {
-      // This changes the explosion sprite to "flash" between the two sprites as in the original game
-      ++explosionSpriteTime;
-      if(explosionSpriteTime%2 == 0)
-        explosionSpriteTime = 0;
-
-    }
-    // Changing the sprite coordinates to match the two different explosion frames
-    if(explosionSpriteTime)
-    {
-      sS_sprite.x=340;
-      sS_sprite.y=616;
-      sS_sprite.w=95;
-      sS_sprite.h=59;
-    }
-    else
-    {
-      sS_sprite.x = 218;
-      sS_sprite.y = 616;
-      sS_sprite.w = 105;
-      sS_sprite.h = 61;
-      flip = SDL_FLIP_VERTICAL;
-    }
-    destroySequence += 1;
-  }
-
-  if(destroySequence == 50)
-  {
-    destroySequence = 0;
-    // As lives is a char, the comparison happens in ASCII values, thus we'll be creating a variable that holds the ascii value of 0
-    int life = '0';
-    if(lives[0] > life)
-    {
-      *playerDead = 0;
-      spaceShip->x = (WIDTH-SPRITEWIDTH)/2;
-    }
-    else
-    {
-      *playerDead = 2;
-    }
-  }
-
-  SDL_RenderCopyEx(ren, tex, &sS_sprite, spaceShip, 0.0, NULL, flip);
-}
-
-void shootPewPew(SDL_Renderer *ren, SDL_Rect *projectile, int level)
-{
-  int levelAdjustment;
-  switch(level)
-  {
-    case 6: levelAdjustment = PROJECTILESPEED/4; break;
-    case 7: levelAdjustment = PROJECTILESPEED/2; break;
-    case 8: levelAdjustment = 3*PROJECTILESPEED/4; break;
-    default: levelAdjustment = 0; break;
-  }
-
-  projectile->y -= PROJECTILESPEED+levelAdjustment;
-
-  SDL_SetRenderDrawColor(ren, 255, 255, 255, 255);
-  SDL_RenderFillRect(ren, projectile);
-}
-
-void invaderShootPewPew(SDL_Renderer *ren, SDL_Texture *tex, SDL_Rect *invaderProjectile)
-{
-  SDL_Rect projectileSprite;
-  projectileSprite.x = 468;
-  projectileSprite.y = 379;
-  projectileSprite.w = 27;
-  projectileSprite.h = 50;
-
-  invaderProjectile->y += 6;
-
-  SDL_RenderCopy(ren, tex, &projectileSprite, invaderProjectile);
-}
-
 void explodeProjectile(SDL_Renderer *ren, SDL_Rect *projectileBoom, SDL_Texture *tex, int *explodeP)
 {
     static int delay = 0;
@@ -1165,242 +919,7 @@ void explodeProjectile(SDL_Renderer *ren, SDL_Rect *projectileBoom, SDL_Texture 
     }
 }
 
-void initializeInvaders(Invader invaders[ROWS][COLS])
-{
-  SDL_Rect pos;
-  pos.w=SPRITEWIDTH;
-  pos.h=SPRITEHEIGHT;
-  int ypos=GAP;
 
-  for(int r=0; r<ROWS; ++r)
-  {
-    int xpos=GAP;
-    for(int c=0; c<COLS; ++c)
-    {
-      pos.x=xpos+SPRITEWIDTH;
-      pos.y=ypos+SPRITEHEIGHT+INFOBOXHEIGHT;
-      xpos+=(GAP+SPRITEWIDTH);
-      invaders[r][c].pos=pos;
-      invaders[r][c].active=1;
-      invaders[r][c].frame=0;
-      if(r==0)
-        invaders[r][c].type=TYPE3;
-      else if(r==1 || r==2)
-        invaders[r][c].type=TYPE2;
-      else
-        invaders[r][c].type=TYPE1;
-
-    }
-    ypos+=(GAP+SPRITEHEIGHT);
-  }
-}
-
-
-void drawInvaders(SDL_Renderer *ren, SDL_Texture *tex, Invader invaders[ROWS][COLS], int currentFrame)
-{
-  SDL_Rect SrcR;
-  static int destroySequence = 0;
-
-  for(int r=0; r<ROWS; ++r)
-  {
-    for(int c=0; c<COLS; ++c)
-    {
-      if(invaders[r][c].frame == 3)
-      {
-        SrcR.x=340;
-        SrcR.y=616;
-        SrcR.w=95;
-        SrcR.h=59;
-        destroySequence += 1;
-      }
-      else
-      {
-
-        switch(invaders[r][c].type)
-        {
-          case TYPE3 :
-          {
-            SDL_SetRenderDrawColor(ren, 255, 0, 0, 255);
-            SrcR.x=292+(117*currentFrame);
-            SrcR.y=0;
-            SrcR.w=80;
-            SrcR.h=80;
-            break;
-          }
-          case TYPE2 :
-          {
-            SDL_SetRenderDrawColor(ren, 0, 255, 0, 255);
-            SrcR.x=145*currentFrame;
-            SrcR.y=0;
-            SrcR.w=111;
-            SrcR.h=80;
-            break;
-          }
-          case TYPE1 :
-          {
-            SDL_SetRenderDrawColor(ren, 0, 0, 255, 255);
-            SrcR.x=140*currentFrame;
-            SrcR.y=120;
-            SrcR.w=120;
-            SrcR.h=80;
-            break;
-          }
-        }
-      }
-
-      if(destroySequence == 10)
-      {
-        destroySequence = 0;
-        invaders[r][c].active = 0;
-        invaders[r][c].frame = 0;
-      }
-
-      if(invaders[r][c].active)
-      {
-        SDL_RenderFillRect(ren,&invaders[r][c].pos);
-        SDL_RenderCopy(ren, tex,&SrcR,&invaders[r][c].pos);
-      }
-
-    }
-  }
-}
-
-void updateInvaders(Invader invaders[ROWS][COLS], int *gameSpeed, int *currentFrame, int actInvaderInRow[COLS], int level)
-{
-  enum DIR{FWD,BWD};
-  static int DIRECTION=FWD;
-  int yinc=0;
-  int increaseY = GAP/2;
-  static int actColR = COLS-1;
-  static int actColL = 0;
-  int stopLoop = 0;
-  static int updateSpeed = 1;
-  static int animationFrame = 0;
-  int whenToUpdate;
-
-  switch(level)
-  {
-    case 1: whenToUpdate = 8; break;
-    case 2: whenToUpdate = 6; break;
-    case 3: whenToUpdate = 4; break;
-    case 4: whenToUpdate = 2; break;
-    case 5: whenToUpdate = 1; break;
-    case 6: whenToUpdate = 1; increaseY = GAP; break;
-    case 7: whenToUpdate = 1; increaseY = GAP+(GAP/2); break;
-    case 8: whenToUpdate = 1; increaseY = GAP*2; break;
-    default: whenToUpdate = 1; increaseY = GAP*4; break;
-  }
-
-  // Loop through the column from right to find the active outermost column on right
-  for(int c = COLS-1; c >= 0; --c)
-    {
-      // Loop through all the rows in a column
-      for(int r = 0; r < ROWS; ++r)
-      {
-        // If an active invader is found in the current column, stop the loop (no need to run further as this is the outermost active column
-        // and set the current column to be the active one
-        if(invaders[r][c].active)
-        {
-          actColR = c;
-          stopLoop = 1;
-          break;
-        }
-      }
-      if(stopLoop)
-      {
-        break;
-      }
-  }
-
-  stopLoop = 0;
-
-  // Loop through the column from left to find the active outermost column on left
-  for(int c = 0; c < COLS; ++c)
-    {
-      // Loop through all the rows in a column
-      for(int r = 0; r < ROWS; ++r)
-      {
-        // If an active invader is found in the current column, stop the loop (no need to run further as this is the outermost active column
-        // and set the current column to be the active one
-        if(invaders[r][c].active)
-        {
-          actColL = c;
-          stopLoop = 1;
-          break;
-        }
-      }
-      if(stopLoop)
-      {
-        break;
-      }
-  }
-
-  if(invaders[0][actColR].pos.x>=WIDTH-(SPRITEWIDTH*2-SPRITEWIDTH/2))
-  {
-    DIRECTION=BWD;
-    yinc=increaseY;
-    if(updateSpeed%whenToUpdate == 0 && *gameSpeed < 10)
-    {
-      ++*gameSpeed;
-      animationFrame = 0;
-      updateSpeed = 0;
-    }
-    ++updateSpeed;
-  }
-
-  else if(invaders[0][actColL].pos.x<=SPRITEWIDTH/2)
-  {
-    DIRECTION=FWD;
-    yinc=increaseY;
-    if(updateSpeed%whenToUpdate == 0 && *gameSpeed < 10)
-    {
-      ++*gameSpeed;
-      animationFrame = 0;
-      updateSpeed = 0;
-    }
-    ++updateSpeed;
-  }
-
-  for(int r=0; r<ROWS; ++r)
-  {
-    for(int c=0; c<COLS; ++c)
-    {
-      if(DIRECTION==FWD)
-      {
-        invaders[r][c].pos.x+=1+*gameSpeed;
-      }
-      else
-      {
-        invaders[r][c].pos.x-=1+*gameSpeed;
-      }
-
-      // Changing the sprite animation
-      ++animationFrame;
-      if(animationFrame == ANIMATIONSEQUENCELENGTH/(*gameSpeed))
-      {
-        ++*currentFrame;
-
-        if(*currentFrame%2 == 0)
-        {
-          *currentFrame = 0;
-        }
-        animationFrame = 0;
-      }
-
-      invaders[r][c].pos.y += yinc;
-
-    }
-  }
-  for(int c = 0; c < COLS; ++c)
-  {
-    actInvaderInRow[c] = 0;
-    for(int r = 0; r < ROWS; ++r)
-    {
-      if(invaders[r][c].active)
-        actInvaderInRow[c] = r+1;
-    }
-  }
-}
 
 void renderLives(SDL_Renderer *ren, SDL_Texture *tex, char *lives, int player, int players)
 {
@@ -1431,126 +950,6 @@ void renderLives(SDL_Renderer *ren, SDL_Texture *tex, char *lives, int player, i
     SDL_RenderCopy(ren, tex, &livesSprite, &livesTextHolder);
   }
   SDL_SetTextureColorMod(tex, 255, 255, 255);
-}
-
-void playSound(Mix_Chunk *sound, int chanToPlay, int loops)
-{
-
-  // If channel to play the sound on is set to 0, we'll use -1 which checks the first available channel.
-  // Should be avoided as it could affect the bg music or anything with a preset channel
-    if(chanToPlay == 0)
-    {
-        chanToPlay = -1;
-    }
-
-    // Initializing the channel, the sound and play the as many times as defined in the loops variable passed to the function
-    int channel;
-    channel = Mix_PlayChannel(chanToPlay, sound, loops);
-    if(channel == -1) {
-        fprintf(stderr, "Unable to play WAV file: %s\n", Mix_GetError());
-    }
-
-}
-void playMusic(int gameSpeed, Mix_Chunk *music[4])
-{
-    static int currentSound = 3;
-    static int musicFrame = 25;
-    int musicSpeed;
-
-    // Check the current gamepeed and adjust the "music speed" or rather the interval between the bg bass noises accordingly
-    switch(gameSpeed)
-    {
-        case 1: musicSpeed = 50; break;
-        case 2: musicSpeed = 45; break;
-        case 3: musicSpeed = 40; break;
-        case 4: musicSpeed = 35; break;
-        case 5: musicSpeed = 30; break;
-        case 6: musicSpeed = 25; break;
-        case 7: musicSpeed = 20; break;
-        case 8: musicSpeed = 15; break;
-        case 9: musicSpeed = 10; break;
-        case 10: musicSpeed = 5; break;
-        default: musicSpeed = 5; break;
-    }
-
-    // Check if the channel 1 is active, i.e. the channel that's reserved for the bg music, if not continue to the "interval" calculations
-    if(Mix_Playing(1) == 0)
-    {
-        if(musicFrame < musicSpeed)
-        {
-         ++musicFrame;
-        }
-        else
-        {
-            musicFrame = 1;
-        }
-
-        // Plays the next bg sound on every _musicSpeed_ frame
-        if(musicFrame%musicSpeed == 0)
-        {
-
-            playSound(music[currentSound], 1, 0);
-            if(currentSound < 3)
-            {
-                ++currentSound;
-            }
-            else
-            {
-                currentSound = 0;
-            }
-
-        }
-    }
-
-}
-
-void wooAlien(SDL_Renderer *ren, SDL_Texture *tex, Invader *alien, int direction, Mix_Chunk *ufosound)
-{
-  // Set the sprite coordinates for the alien
-  SDL_Rect alien_sprite;
-  alien_sprite.x = 0;
-  alien_sprite.y = 616;
-  alien_sprite.w = 125;
-  alien_sprite.h = 61;
-
-  static int destroySequence = 0;
-
-  // Checks if the alien has been destroyed and if the destroy sequence should be run
-  if(alien->frame == 1)
-  {
-    alien_sprite.x=340;
-    alien_sprite.y=616;
-    alien_sprite.w=95;
-    alien_sprite.h=59;
-    destroySequence += 1;
-  }
-  else
-  {
-    // Checks where the alien should be moving, i.e. if it spawned to the left or the right side of the screen
-    if(direction == 0)
-        alien->pos.x += 5;
-    else
-        alien->pos.x -= 5;
-    // While alien is active play the ufo sound
-    playSound(ufosound, 4, -1);
-
-    // Checks if the ufo passed the screen and make it not active and stop the sound
-    if(alien->pos.x < -alien->pos.w || alien->pos.x > WIDTH+alien->pos.w)
-    {
-        alien->active = 0;
-        Mix_Pause(4);
-    }
-  }
-
-  if(destroySequence == 10)
-  {
-    destroySequence = 0;
-    alien->active = 0;
-    alien->frame = 0;
-  }
-
-  // Render the ufo
-  SDL_RenderCopy(ren, tex, &alien_sprite, &alien->pos);
 }
 
 SDL_Texture *textureFromText(SDL_Renderer *ren, TTF_Font *font, char *textToRender)
@@ -1751,109 +1150,60 @@ void initFirstScreen(SDL_Rect *mainTextHolder, SDL_Rect *scoreTableHolder, SDL_R
 
 }
 
-/*void firstScreen(SDL_Rect spaceShip[2], SDL_Rect livesHolder[2], int *selection, int *quit)
+void initializeShields(SDL_Rect shields[4])
 {
-
-  // Main menu stuff start
-  int moveOn = 0;
-  int currentSelectionCoords[2];
-  int selection = 0;
-
-  while(!startgame)
+  for(int i = 0; i < 4; ++i)
   {
-    SDL_Event event;
-    while (SDL_PollEvent(&event))
-    {
-      if (event.type == SDL_QUIT)
-      {
-        *quit = 1;
-        startgame = 1;
-      }
-      if (event.type == SDL_KEYDOWN)
-      {
-        switch (event.key.keysym.sym)
-        {
-          case SDLK_ESCAPE: *quit = 1; startgame = 1; break;
-          case SDLK_RETURN:
-          {
-            if(moveOn)
-            {
-              if(!selection)
-              {
-                //printf("1 Player\n");
-                startgame = 1;
-                spaceShip[0].x = (WIDTH-SPRITEWIDTH)/2;
-                livesHolder[0].x = 5;
-              }
-              else
-              {
-                //printf("2 Players\n");
-                startgame = 1;
-                spaceShip[0].x = 3*(WIDTH-SPRITEWIDTH)/4;
-                spaceShip[1].x = (WIDTH-SPRITEWIDTH)/4;
-                livesHolder[0].x = WIDTH-5-livesHolder[0].w;
-                livesHolder[1].x = 5;
-              }
-            }
-            else
-            {
-            moveOn = 1;
-            }
-            break;
-          }
-          case SDLK_RIGHT: case SDLK_LEFT:
-          {
-            if(moveOn)
-            {
-              if(!*selection)
-                ++*selection;
-              else
-                *selection = 0;
-
-              selectRect.x = currentSelectionCoords[*selection];
-            }
-            break;
-          }
-        }
-      }
-    }
-
-    SDL_SetRenderDrawColor(ren, 0, 0, 0, 255);
-    SDL_RenderClear(ren);
-    SDL_RenderCopy(ren, mainTextTexture, NULL, &mainTextHolder);
-    if(!moveOn)
-    {
-      SDL_RenderCopy(ren, scoreTableTexture, NULL, &scoreTableHolder);
-      SDL_RenderCopy(ren, alienPtsTexture, NULL, &alienPtsHolder);
-      SDL_RenderCopy(ren, invT3Texture, NULL, &invT3Holder);
-      SDL_RenderCopy(ren, invT2Texture, NULL, &invT2Holder);
-      SDL_RenderCopy(ren, invT1Texture, NULL, &invT1Holder);
-      for(int i = 0; i < 4; ++i)
-      {
-        SDL_RenderCopy(ren, tex, &invaderSrcR[i], &invader[i]);
-      }
-      //SDL_RenderCopy(ren, anykeyTexture, NULL, &anykeyHolder);
-    }
-    else
-    {
-      SDL_SetRenderDrawColor(ren, 255, 255, 255, 255);
-      SDL_RenderFillRect(ren, &selectRect);
-
-      if(selection)
-      {
-        p1keysHolder.x = WIDTH/2 - p1keysHolder.w - 50;
-        SDL_RenderCopy(ren, p2ktex, NULL, &p2keysHolder);
-      }
-      else
-      {
-        p1keysHolder.x = (WIDTH-p1keysHolder.w)/2;
-      }
-
-      SDL_RenderCopy(ren, p1ktex, NULL, &p1keysHolder);
-      SDL_RenderCopy(ren, onePTexture, NULL, &oneplayerHolder);
-      SDL_RenderCopy(ren, twoPtexture, NULL, &twoplayersHolder);
-    }
-    SDL_RenderPresent(ren);
+    shields[i].w = 88;
+    shields[i].h = 64;
+    shields[i].y = HEIGHT - 30 - shields[i].h*2;
+    shields[i].x = (WIDTH-(shields[i].w*4))/8 + i*(shields[i].w+(WIDTH-(shields[i].w*4))/4);
   }
 }
-*/
+
+void initializeScreenStuff( SDL_Rect *infoLine, SDL_Rect *bottomLine, SDL_Rect *screen, SDL_Rect *scoreHolder,
+                            SDL_Rect *highscoreHolder, SDL_Rect livesHolder[2], SDL_Rect *levelHolder,
+                            SDL_Rect *p1keysHolder, SDL_Rect *p2keysHolder)
+{
+  infoLine->x = 0;
+  infoLine->y = INFOBOXHEIGHT;
+  infoLine->w = WIDTH;
+  infoLine->h = 5;
+
+  bottomLine->x = 0;
+  bottomLine->y = HEIGHT-30;
+  bottomLine->w = WIDTH;
+  bottomLine->h = 3;
+
+  screen->x = 0;
+  screen->y = 0;
+  screen->w = WIDTH;
+  screen->h = HEIGHT;
+
+  scoreHolder->x = 5;
+  scoreHolder->y = INFOBOXHEIGHT/2 - FONTSIZE/2;
+  scoreHolder->w = 0;
+  scoreHolder->h = 0;
+
+  highscoreHolder->x = 0;
+  highscoreHolder->y = INFOBOXHEIGHT/2 - FONTSIZE/2;
+  highscoreHolder->w = 0;
+  highscoreHolder->h = 0;
+
+  for(int i = 0; i < 2; ++i)
+  {
+    livesHolder[i].w = 0;
+    livesHolder[i].h = 0;
+    livesHolder[i].y = bottomLine->y + FONTSIZE/2;
+  }
+
+  levelHolder->y = INFOBOXHEIGHT/2 - FONTSIZE/2;
+  levelHolder->w = 0;
+  levelHolder->h = 0;
+
+  p1keysHolder->w = 2*390/3;
+  p1keysHolder->h = 2*87/3;
+
+  p2keysHolder->w = 2*226/3;
+  p2keysHolder->h = 2*137/3;
+}
