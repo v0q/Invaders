@@ -59,6 +59,15 @@ void drawSpaceShip(SDL_Renderer *ren, SDL_Texture *sStexture, SDL_Rect *spaceShi
 void shootPewPew(SDL_Renderer *ren, SDL_Rect *projectile, int level);
 
 // -----------------------------------------------------------------------------------------------------------------------
+/// @brief explodeProjectile
+/// @param[in] ren Renderer that the render data gets passed to
+/// @param[io] projectileBoom The rect for the explosion
+/// @param[in] tex The texture holding the explosion sprite
+/// @param[io] explodeP A variable that tells when the projectile should be exploding, will reset after certain amount of frames
+// -----------------------------------------------------------------------------------------------------------------------
+void explodeProjectile(SDL_Renderer *ren, SDL_Rect *projectileBoom, SDL_Texture *tex, int *explodeP);
+
+// -----------------------------------------------------------------------------------------------------------------------
 /// @brief Render the lives as defenders to the bottom of the screen
 /// @param[in] ren Renderer that the render data gets passed to
 /// @param[in] tex The texture holding the defender sprite

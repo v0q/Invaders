@@ -2,6 +2,7 @@
  Copyright © 2015 Teemu Lindborg
 */
 
+// Including the global definitions and includes for the use of the functions and the header files for all the used functionalities that are not implemented in main.c
 #include "Globals.h"
 #include "Invader.h"
 #include "Defender.h"
@@ -16,22 +17,6 @@
 ///       amount of parameters (initFirstScreen, initialiseScreenStuff)
 // -----------------------------------------------------------------------------------------------------------------------
 
-
-// -----------------------------------------------------------------------------------------------------------------------
-/// @brief Initialises the positions and dimensions of some of the stuff that'll be rendered in the game
-/// @param[in] infoLine The line that separates the top data from the game, used as the top boundary
-/// @param[in] bottomLine Bottom boundary, separates the players' lives from the game
-/// @param[in] screen The actual screen dimension
-/// @param[in] scoreHolder The rect that holds the score texture
-/// @param[in] highscoreHolder The rect that holds the high score texture
-/// @param[in] livesHolder The rect that holds the lives
-/// @param[in] levelHolder The rect that holds the level
-/// @param[in] p1keysHolder The rect that holds the player 1 key instructions
-/// @param[in] p2keysHolder The rect that holds the player 2 key instructions
-// -----------------------------------------------------------------------------------------------------------------------
-void initialiseScreenStuff( SDL_Rect *infoLine, SDL_Rect *bottomLine, SDL_Rect *screen, SDL_Rect *scoreHolder,
-                            SDL_Rect *highscoreHolder, SDL_Rect livesHolder[2], SDL_Rect *levelHolder,
-                            SDL_Rect *p1keysHolder, SDL_Rect *p2keysHolder);
 
 // -----------------------------------------------------------------------------------------------------------------------
 /// @brief Initialises SDL, SDL_TTF and SDL_Mixer
@@ -49,11 +34,41 @@ int initialiseSDL();
 // -----------------------------------------------------------------------------------------------------------------------
 int initialiseRenWinFonts(SDL_Window **win, SDL_Renderer **ren, TTF_Font **font, TTF_Font **bigfont);
 
-void explodeProjectile(SDL_Renderer *ren, SDL_Rect *projectileBoom, SDL_Texture *tex, int *explodeP);
+// -----------------------------------------------------------------------------------------------------------------------
+/// @brief Initialises the screen and some visual ques/boundaries that separate an "info area" from the actual play area
+/// @param[out] infoLine The line that separates the top data from the game, used as the top boundary
+/// @param[out] bottomLine Bottom boundary, separates the players' lives from the game
+/// @param[out] screen The actual screen dimension
+/// @param[out] livesHolder The rect that holds the lives
+// -----------------------------------------------------------------------------------------------------------------------
+void initialiseScreenStuff(SDL_Rect *infoLine, SDL_Rect *bottomLine, SDL_Rect *screen, SDL_Rect livesHolder[2]);
 
+// -----------------------------------------------------------------------------------------------------------------------
+/// @brief Generates a SDL_Texture from the text passed in to the function
+/// @param[in] ren Renderer that the render data gets passed to
+/// @param[in] font Font that's used to create the texture
+/// @param[in] textToRender Text the texture will be created of
+/// @return A texture created from the text and font
+// -----------------------------------------------------------------------------------------------------------------------
 SDL_Texture *textureFromText(SDL_Renderer *ren, TTF_Font *font, char *textToRender);
+
+// -----------------------------------------------------------------------------------------------------------------------
+/// @brief Creates a texture of a png image located in "sprites/" with the given name. First it loads the image into a
+///        surface from which the actual texture is created from, frees the surface afterwards.
+/// @param[in] ren Renderer that the render data gets passed to
+/// @param[in] sprite The name of the image-file that will be loaded to a texture
+/// @return A texture that was loaded or error if sprite(sheet) not found
+// -----------------------------------------------------------------------------------------------------------------------
 SDL_Texture *loadTexture(SDL_Renderer *ren, char *sprite);
 
+// -----------------------------------------------------------------------------------------------------------------------
+/// @brief Initialises most of the rects and their positions in which the corresponding textures are rendered at any given
+///        time. Not all params are listed due to the hugely bloated function that should be fixed.
+/// @param[io] Holder Initialises the dimensions and positions of each holder based on the wanted location on screen
+///            and possibly texture dimensions.
+/// @param[i] Textures Only used to get the widths and heights for the corresponding rects
+/// @param[out] currentSelectionCoords Loads the coordinates of the main menu selection to an array
+// -----------------------------------------------------------------------------------------------------------------------
 void initFirstScreen(SDL_Rect *mainTextHolder, SDL_Rect *scoreTableHolder, SDL_Rect *alienPtsHolder,
                      SDL_Rect *invT3Holder, SDL_Rect *invT2Holder, SDL_Rect *invT1Holder, SDL_Rect invader[4],
                      SDL_Rect invaderSrcR[4], SDL_Rect *oneplayerHolder, SDL_Rect *twoplayersHolder, SDL_Rect *selectRect,
@@ -67,6 +82,7 @@ void initFirstScreen(SDL_Rect *mainTextHolder, SDL_Rect *scoreTableHolder, SDL_R
 
                      int currentSelectionCoords[2]);
 
+// -----------------------------------------------------------------------------------------------------------------------
 int main()
 {
 
@@ -113,7 +129,7 @@ int main()
   initialiseInvaders(invaders, &alien, invaderProjectile, actInvaderInRow, invaderProjectileActive);
   initialiseDefender(spaceShip, projectile, projectileBoom);
   initialiseShields(shields);
-  initialiseScreenStuff(&infoLine, &bottomLine, &screen, &scoreHolder, &highscoreHolder, livesHolder, &levelHolder, &p1keysHolder, &p2keysHolder);
+  initialiseScreenStuff(&infoLine, &bottomLine, &screen, livesHolder);
 
   initialiseSDL();
   initialiseRenWinFonts(&win, &ren, &font, &bigfont);
@@ -808,29 +824,89 @@ int main()
   return 0;
 }
 
-void explodeProjectile(SDL_Renderer *ren, SDL_Rect *projectileBoom, SDL_Texture *tex, int *explodeP)
+// -----------------------------------------------------------------------------------------------------------------------
+int initialiseSDL()
 {
-    static int delay = 0;
+  int audio_rate = 22050;
+  Uint16 audio_format = AUDIO_S16SYS;
+  int audio_channels = 2;
+  int audio_buffers = 4096;
 
-    SDL_Rect projectileSprite;
-    projectileSprite.x = 218;
-    projectileSprite.y = 616;
-    projectileSprite.w = 105;
-    projectileSprite.h = 61;
+  if (SDL_Init(SDL_INIT_EVERYTHING) == -1)
+  {
+    printf("%s\n",SDL_GetError());
+    return EXIT_FAILURE;
+  }
 
-    delay += 1;
+  if(TTF_Init() == -1)
+  {
+    printf("%s\n", TTF_GetError());
+    return EXIT_FAILURE;
+  }
 
-    if(delay < 5)
-    {
-      SDL_RenderCopy(ren, tex, &projectileSprite, projectileBoom);
-    }
-    else
-    {
-      *explodeP = 0;
-      delay = 0;
-    }
+  if(Mix_OpenAudio(audio_rate, audio_format, audio_channels, audio_buffers) != 0) {
+      fprintf(stderr, "Unable to initialize audio: %s\n", Mix_GetError());
+      exit(1);
+  }
+
+  return 0;
 }
 
+// -----------------------------------------------------------------------------------------------------------------------
+int initialiseRenWinFonts(SDL_Window **win, SDL_Renderer **ren, TTF_Font **font, TTF_Font **bigfont)
+{
+  *win = SDL_CreateWindow("Invaders", 100, 100, WIDTH, HEIGHT, SDL_WINDOW_SHOWN);
+  if (*win == 0)
+  {
+    printf("%s\n",SDL_GetError());
+    return EXIT_FAILURE;
+  }
+  *ren = SDL_CreateRenderer(*win, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+  if (*ren == 0)
+  {
+    printf("%s\n",SDL_GetError() );
+    return EXIT_FAILURE;
+  }
+
+  *font = TTF_OpenFont("fonts/space_invaders.ttf", FONTSIZE);
+  *bigfont = TTF_OpenFont("fonts/space_invaders.ttf", FONTSIZE*4);
+
+  if(*font == NULL || *bigfont == NULL)
+  {
+    printf("BOOM FAILED %s\n", TTF_GetError());
+    return EXIT_FAILURE;
+  }
+
+  return 0;
+}
+
+// -----------------------------------------------------------------------------------------------------------------------
+void initialiseScreenStuff(SDL_Rect *infoLine, SDL_Rect *bottomLine, SDL_Rect *screen, SDL_Rect livesHolder[2])
+{
+  infoLine->x = 0;
+  infoLine->y = INFOBOXHEIGHT;
+  infoLine->w = WIDTH;
+  infoLine->h = 5;
+
+  bottomLine->x = 0;
+  bottomLine->y = HEIGHT-30;
+  bottomLine->w = WIDTH;
+  bottomLine->h = 3;
+
+  screen->x = 0;
+  screen->y = 0;
+  screen->w = WIDTH;
+  screen->h = HEIGHT;
+
+  for(int i = 0; i < 2; ++i)
+  {
+    livesHolder[i].w = 0;
+    livesHolder[i].h = 0;
+    livesHolder[i].y = bottomLine->y + FONTSIZE/2;
+  }
+}
+
+// -----------------------------------------------------------------------------------------------------------------------
 SDL_Texture *textureFromText(SDL_Renderer *ren, TTF_Font *font, char *textToRender)
 {
   SDL_Texture *texture;
@@ -844,6 +920,7 @@ SDL_Texture *textureFromText(SDL_Renderer *ren, TTF_Font *font, char *textToRend
   return texture;
 }
 
+// -----------------------------------------------------------------------------------------------------------------------
 SDL_Texture *loadTexture(SDL_Renderer *ren, char *sprite)
 {
   SDL_Surface *tmpSurface;
@@ -865,6 +942,7 @@ SDL_Texture *loadTexture(SDL_Renderer *ren, char *sprite)
   return tmpTexture;
 }
 
+// -----------------------------------------------------------------------------------------------------------------------
 void initFirstScreen(SDL_Rect *mainTextHolder, SDL_Rect *scoreTableHolder, SDL_Rect *alienPtsHolder,
                      SDL_Rect *invT3Holder, SDL_Rect *invT2Holder, SDL_Rect *invT1Holder, SDL_Rect invader[4],
                      SDL_Rect invaderSrcR[4], SDL_Rect *oneplayerHolder, SDL_Rect *twoplayersHolder, SDL_Rect *selectRect,
@@ -878,6 +956,26 @@ void initFirstScreen(SDL_Rect *mainTextHolder, SDL_Rect *scoreTableHolder, SDL_R
 
                      int currentSelectionCoords[2])
 {
+
+  scoreHolder->x = 5;
+  scoreHolder->y = INFOBOXHEIGHT/2 - FONTSIZE/2;
+  scoreHolder->w = 0;
+  scoreHolder->h = 0;
+
+  highscoreHolder->x = 0;
+  highscoreHolder->y = INFOBOXHEIGHT/2 - FONTSIZE/2;
+  highscoreHolder->w = 0;
+  highscoreHolder->h = 0;
+
+  levelHolder->y = INFOBOXHEIGHT/2 - FONTSIZE/2;
+  levelHolder->w = 0;
+  levelHolder->h = 0;
+
+  p1keysHolder->w = 2*390/3;
+  p1keysHolder->h = 2*87/3;
+
+  p2keysHolder->w = 2*226/3;
+  p2keysHolder->h = 2*137/3;
 
   selectRect->h = 10;
   selectRect->w = 10;
@@ -971,105 +1069,4 @@ void initFirstScreen(SDL_Rect *mainTextHolder, SDL_Rect *scoreTableHolder, SDL_R
   anykeyHolder->x = (WIDTH-anykeyHolder->w)/2;
   anykeyHolder->y = (HEIGHT-gameoverHolder->h)/2;
 
-}
-
-void initialiseScreenStuff( SDL_Rect *infoLine, SDL_Rect *bottomLine, SDL_Rect *screen, SDL_Rect *scoreHolder,
-                            SDL_Rect *highscoreHolder, SDL_Rect livesHolder[2], SDL_Rect *levelHolder,
-                            SDL_Rect *p1keysHolder, SDL_Rect *p2keysHolder)
-{
-  infoLine->x = 0;
-  infoLine->y = INFOBOXHEIGHT;
-  infoLine->w = WIDTH;
-  infoLine->h = 5;
-
-  bottomLine->x = 0;
-  bottomLine->y = HEIGHT-30;
-  bottomLine->w = WIDTH;
-  bottomLine->h = 3;
-
-  screen->x = 0;
-  screen->y = 0;
-  screen->w = WIDTH;
-  screen->h = HEIGHT;
-
-  scoreHolder->x = 5;
-  scoreHolder->y = INFOBOXHEIGHT/2 - FONTSIZE/2;
-  scoreHolder->w = 0;
-  scoreHolder->h = 0;
-
-  highscoreHolder->x = 0;
-  highscoreHolder->y = INFOBOXHEIGHT/2 - FONTSIZE/2;
-  highscoreHolder->w = 0;
-  highscoreHolder->h = 0;
-
-  for(int i = 0; i < 2; ++i)
-  {
-    livesHolder[i].w = 0;
-    livesHolder[i].h = 0;
-    livesHolder[i].y = bottomLine->y + FONTSIZE/2;
-  }
-
-  levelHolder->y = INFOBOXHEIGHT/2 - FONTSIZE/2;
-  levelHolder->w = 0;
-  levelHolder->h = 0;
-
-  p1keysHolder->w = 2*390/3;
-  p1keysHolder->h = 2*87/3;
-
-  p2keysHolder->w = 2*226/3;
-  p2keysHolder->h = 2*137/3;
-}
-
-int initialiseSDL()
-{
-  int audio_rate = 22050;
-  Uint16 audio_format = AUDIO_S16SYS;
-  int audio_channels = 2;
-  int audio_buffers = 4096;
-
-  if (SDL_Init(SDL_INIT_EVERYTHING) == -1)
-  {
-    printf("%s\n",SDL_GetError());
-    return EXIT_FAILURE;
-  }
-
-  if(TTF_Init() == -1)
-  {
-    printf("%s\n", TTF_GetError());
-    return EXIT_FAILURE;
-  }
-
-  if(Mix_OpenAudio(audio_rate, audio_format, audio_channels, audio_buffers) != 0) {
-      fprintf(stderr, "Unable to initialize audio: %s\n", Mix_GetError());
-      exit(1);
-  }
-
-  return 0;
-}
-
-int initialiseRenWinFonts(SDL_Window **win, SDL_Renderer **ren, TTF_Font **font, TTF_Font **bigfont)
-{
-  *win = SDL_CreateWindow("Invaders", 100, 100, WIDTH, HEIGHT, SDL_WINDOW_SHOWN);
-  if (*win == 0)
-  {
-    printf("%s\n",SDL_GetError());
-    return EXIT_FAILURE;
-  }
-  *ren = SDL_CreateRenderer(*win, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
-  if (*ren == 0)
-  {
-    printf("%s\n",SDL_GetError() );
-    return EXIT_FAILURE;
-  }
-
-  *font = TTF_OpenFont("fonts/space_invaders.ttf", FONTSIZE);
-  *bigfont = TTF_OpenFont("fonts/space_invaders.ttf", FONTSIZE*4);
-
-  if(*font == NULL || *bigfont == NULL)
-  {
-    printf("BOOM FAILED %s\n", TTF_GetError());
-    return EXIT_FAILURE;
-  }
-
-  return 0;
 }

@@ -141,6 +141,30 @@ void shootPewPew(SDL_Renderer *ren, SDL_Rect *projectile, int level)
 }
 
 // -----------------------------------------------------------------------------------------------------------------------
+void explodeProjectile(SDL_Renderer *ren, SDL_Rect *projectileBoom, SDL_Texture *tex, int *explodeP)
+{
+    static int delay = 0;
+
+    SDL_Rect projectileSprite;
+    projectileSprite.x = 218;
+    projectileSprite.y = 616;
+    projectileSprite.w = 105;
+    projectileSprite.h = 61;
+
+    delay += 1;
+
+    if(delay < 5)
+    {
+      SDL_RenderCopy(ren, tex, &projectileSprite, projectileBoom);
+    }
+    else
+    {
+      *explodeP = 0;
+      delay = 0;
+    }
+}
+
+// -----------------------------------------------------------------------------------------------------------------------
 void renderLives(SDL_Renderer *ren, SDL_Texture *tex, char *lives, int player, int players)
 {
   SDL_Rect livesSprite;
