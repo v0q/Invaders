@@ -1,6 +1,15 @@
+/*
+ Copyright © 2015 Teemu Lindborg
+*/
+
 #include "Globals.h"
 #include "Invader.h"
 #include "Sounds.h"
+
+// -----------------------------------------------------------------------------------------------------------------------
+/// @file Invader.c
+/// @brief Functionality for the invaders and the alien
+// -----------------------------------------------------------------------------------------------------------------------
 
 void initialiseInvaders(Invader invaders[ROWS][COLS], Invader *alien, SDL_Rect invaderProjectile[COLS], int actInvaderInRow[COLS], int invaderProjectileActive[COLS])
 {
@@ -38,7 +47,7 @@ void initialiseInvaders(Invader invaders[ROWS][COLS], Invader *alien, SDL_Rect i
     invaderProjectile[i].w = 6;
     invaderProjectile[i].h = 18;
     invaderProjectileActive[i] = 0;
-    actInvaderInRow[i] = 0;
+    actInvaderInRow[i] = 5;
   }
 
   alien->active = 0;
@@ -163,14 +172,17 @@ void updateInvaders(Invader invaders[ROWS][COLS], int *gameSpeed, int *currentFr
       ++animationFrame;
       if(animationFrame == ANIMATIONSEQUENCELENGTH/(*gameSpeed))
       {
-        ++*currentFrame;
-
-        if(*currentFrame%2 == 0)
+        if(*currentFrame == 0)
+        {
+          *currentFrame = 1;
+        }
+        else
         {
           *currentFrame = 0;
         }
         animationFrame = 0;
       }
+
 
       invaders[r][c].pos.y += yinc;
 

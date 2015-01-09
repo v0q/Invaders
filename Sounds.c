@@ -1,5 +1,15 @@
+/*
+ Copyright © 2015 Teemu Lindborg
+*/
+
 #include "Sounds.h"
 
+// -----------------------------------------------------------------------------------------------------------------------
+/// @file Sounds.c
+/// @brief Sound loading, playing and freeing
+// -----------------------------------------------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------------------------------------------------
 void loadSounds(Mix_Chunk *music[4], Mix_Chunk **shoot, Mix_Chunk **invaderkilled, Mix_Chunk **ufo_lp, Mix_Chunk **explosion)
 {
   music[0] = Mix_LoadWAV("sounds/fastinvader1.wav");
@@ -23,6 +33,7 @@ void loadSounds(Mix_Chunk *music[4], Mix_Chunk **shoot, Mix_Chunk **invaderkille
   }
 }
 
+// -----------------------------------------------------------------------------------------------------------------------
 void playSound(Mix_Chunk *sound, int chanToPlay, int loops)
 {
 
@@ -42,6 +53,7 @@ void playSound(Mix_Chunk *sound, int chanToPlay, int loops)
 
 }
 
+// -----------------------------------------------------------------------------------------------------------------------
 void playMusic(int gameSpeed, Mix_Chunk *music[4])
 {
     static int currentSound = 3;
@@ -95,7 +107,8 @@ void playMusic(int gameSpeed, Mix_Chunk *music[4])
 
 }
 
-void freeSounds(Mix_Chunk *music[4], Mix_Chunk **shoot, Mix_Chunk **invaderkilled, Mix_Chunk **ufo_lowpitch)
+// -----------------------------------------------------------------------------------------------------------------------
+void freeSounds(Mix_Chunk *music[4], Mix_Chunk **shoot, Mix_Chunk **invaderkilled, Mix_Chunk **ufo_lowpitch, Mix_Chunk **explosion)
 {
   Mix_FreeChunk(music[0]);
   Mix_FreeChunk(music[1]);
@@ -104,4 +117,5 @@ void freeSounds(Mix_Chunk *music[4], Mix_Chunk **shoot, Mix_Chunk **invaderkille
   Mix_FreeChunk(*shoot);
   Mix_FreeChunk(*invaderkilled);
   Mix_FreeChunk(*ufo_lowpitch);
+  Mix_FreeChunk(*explosion);
 }

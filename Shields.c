@@ -1,6 +1,16 @@
+/*
+ Copyright © 2015 Teemu Lindborg
+*/
+
 #include "Shields.h"
 #include "ExplosionPatterns.h"
 
+// -----------------------------------------------------------------------------------------------------------------------
+/// @file Shields.c
+/// @brief Functions to load/refresh the shields and pixel manipulation functions for destroyal
+// -----------------------------------------------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------------------------------------------------
 void loadShields(SDL_Renderer *ren, SDL_Surface *shieldSurface[4], SDL_Texture *shieldTexture[4])
 {
   for(int i = 0; i < 4; ++i)
@@ -15,7 +25,19 @@ void loadShields(SDL_Renderer *ren, SDL_Surface *shieldSurface[4], SDL_Texture *
   }
 }
 
+// -----------------------------------------------------------------------------------------------------------------------
+void initialiseShields(SDL_Rect shields[4])
+{
+  for(int i = 0; i < 4; ++i)
+  {
+    shields[i].w = 88;
+    shields[i].h = 64;
+    shields[i].y = HEIGHT - 30 - shields[i].h*2;
+    shields[i].x = (WIDTH-(shields[i].w*4))/8 + i*(shields[i].w+(WIDTH-(shields[i].w*4))/4);
+  }
+}
 
+// -----------------------------------------------------------------------------------------------------------------------
 void editPixel(SDL_Surface *shieldSurface, int x, int y, int PlorIn)
 {
   Uint8 *index;
@@ -84,6 +106,7 @@ void editPixel(SDL_Surface *shieldSurface, int x, int y, int PlorIn)
 
 }
 
+// -----------------------------------------------------------------------------------------------------------------------
 Uint32 pixelActive(SDL_Surface *shieldSurface, int x, int y)
 {
   Uint8 *index;

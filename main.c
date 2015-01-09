@@ -1,22 +1,55 @@
+/*
+ Copyright © 2015 Teemu Lindborg
+*/
+
 #include "Globals.h"
 #include "Invader.h"
 #include "Defender.h"
 #include "Sounds.h"
 #include "Shields.h"
 
-// Declaring the functions
+// -----------------------------------------------------------------------------------------------------------------------
+/// @file main.c
+/// @brief Main program
+/// \todo Refactoring of the file as the main function is much too big. Find a way proper and tidy way
+///       to initialise all the required variables without winding up with functions that take an extensive
+///       amount of parameters (initFirstScreen, initialiseScreenStuff)
+// -----------------------------------------------------------------------------------------------------------------------
 
-void initialiseShields(SDL_Rect shields[4]);
+
+// -----------------------------------------------------------------------------------------------------------------------
+/// @brief Initialises the positions and dimensions of some of the stuff that'll be rendered in the game
+/// @param[in] infoLine The line that separates the top data from the game, used as the top boundary
+/// @param[in] bottomLine Bottom boundary, separates the players' lives from the game
+/// @param[in] screen The actual screen dimension
+/// @param[in] scoreHolder The rect that holds the score texture
+/// @param[in] highscoreHolder The rect that holds the high score texture
+/// @param[in] livesHolder The rect that holds the lives
+/// @param[in] levelHolder The rect that holds the level
+/// @param[in] p1keysHolder The rect that holds the player 1 key instructions
+/// @param[in] p2keysHolder The rect that holds the player 2 key instructions
+// -----------------------------------------------------------------------------------------------------------------------
 void initialiseScreenStuff( SDL_Rect *infoLine, SDL_Rect *bottomLine, SDL_Rect *screen, SDL_Rect *scoreHolder,
                             SDL_Rect *highscoreHolder, SDL_Rect livesHolder[2], SDL_Rect *levelHolder,
                             SDL_Rect *p1keysHolder, SDL_Rect *p2keysHolder);
 
+// -----------------------------------------------------------------------------------------------------------------------
+/// @brief Initialises SDL, SDL_TTF and SDL_Mixer
+/// @return 0 or EXIT_FAILURE on failure
+// -----------------------------------------------------------------------------------------------------------------------
 int initialiseSDL();
+
+// -----------------------------------------------------------------------------------------------------------------------
+/// @brief Initialises the window, renderer and fonts
+/// @param[out] win To which the window data will be assigned to
+/// @param[out] ren To which the renderer will be assigned to
+/// @param[out] font To which the normal font will be assigned to
+/// @param[out] bigfont To which the bigger font will be assigned to
+/// @return 0 or EXIT_FAILURE on failure
+// -----------------------------------------------------------------------------------------------------------------------
 int initialiseRenWinFonts(SDL_Window **win, SDL_Renderer **ren, TTF_Font **font, TTF_Font **bigfont);
 
 void explodeProjectile(SDL_Renderer *ren, SDL_Rect *projectileBoom, SDL_Texture *tex, int *explodeP);
-
-void renderLives(SDL_Renderer *ren, SDL_Texture *tex, char *lives, int player, int players);
 
 SDL_Texture *textureFromText(SDL_Renderer *ren, TTF_Font *font, char *textToRender);
 SDL_Texture *loadTexture(SDL_Renderer *ren, char *sprite);
@@ -50,7 +83,7 @@ int main()
   SDL_Window *win = 0;
   SDL_Renderer *ren = 0;
   TTF_Font *font = NULL, *bigfont = NULL;
-  Mix_Chunk *music[4], *shoot, *invaderkilled, *ufo_lowpitch, *explosion;
+  Mix_Chunk *music[4], *shoot, *invaderkilled, *ufo_lowpitch, *explosion_sound;
 
   // Create a variable that records the key presses (continuous)
   const Uint8 *keystate = SDL_GetKeyboardState(NULL);
@@ -84,7 +117,7 @@ int main()
 
   initialiseSDL();
   initialiseRenWinFonts(&win, &ren, &font, &bigfont);
-  loadSounds(music, &shoot, &invaderkilled, &ufo_lowpitch, &explosion);
+  loadSounds(music, &shoot, &invaderkilled, &ufo_lowpitch, &explosion_sound);
 
   SDL_Texture *tex, *p1ktex, *p2ktex;
   tex = loadTexture(ren, "sprites");
@@ -630,7 +663,7 @@ int main()
               }
             }
           }
-          playSound(explosion, 4, 0);
+          playSound(explosion_sound, 4, 0);
         }
       }
 
@@ -768,7 +801,7 @@ int main()
 
   // After all else has been lost, i.e. when we finish/quit the game, free the music chunks, close the SDL_Mixer, SDL_ttf and SDL itself
 
-  freeSounds(music, &shoot, &invaderkilled, &ufo_lowpitch);
+  freeSounds(music, &shoot, &invaderkilled, &ufo_lowpitch, &explosion_sound);
   Mix_CloseAudio();
   TTF_Quit();
   SDL_Quit();
@@ -778,8 +811,6 @@ int main()
 void explodeProjectile(SDL_Renderer *ren, SDL_Rect *projectileBoom, SDL_Texture *tex, int *explodeP)
 {
     static int delay = 0;
-    projectileBoom->w = SPRITEWIDTH;
-    projectileBoom->h = 20;
 
     SDL_Rect projectileSprite;
     projectileSprite.x = 218;
@@ -798,39 +829,6 @@ void explodeProjectile(SDL_Renderer *ren, SDL_Rect *projectileBoom, SDL_Texture 
       *explodeP = 0;
       delay = 0;
     }
-}
-
-
-
-void renderLives(SDL_Renderer *ren, SDL_Texture *tex, char *lives, int player, int players)
-{
-  SDL_Rect livesSprite;
-  livesSprite.x = 131;
-  livesSprite.y = 623;
-  livesSprite.w = 73;
-  livesSprite.h = 52;
-
-  SDL_Rect livesTextHolder;
-  livesTextHolder.w = SPRITEWIDTH;
-  livesTextHolder.h = 20;
-  livesTextHolder.y = HEIGHT-25;
-
-  SDL_SetTextureColorMod(tex, 35, 255, 0);
-  for(int i = '1'; i < lives[0]; ++i)
-  {
-    if(players)
-    {
-      if(player)
-        livesTextHolder.x = 25 * ((i%49)+1)+((i%49)*15);
-      else
-        livesTextHolder.x = WIDTH - (25 * ((i%49)+1)+((i%49)*15) + SPRITEWIDTH);
-    }
-    else
-      livesTextHolder.x = 25 * ((i%49)+1)+((i%49)*15);
-
-    SDL_RenderCopy(ren, tex, &livesSprite, &livesTextHolder);
-  }
-  SDL_SetTextureColorMod(tex, 255, 255, 255);
 }
 
 SDL_Texture *textureFromText(SDL_Renderer *ren, TTF_Font *font, char *textToRender)
@@ -973,17 +971,6 @@ void initFirstScreen(SDL_Rect *mainTextHolder, SDL_Rect *scoreTableHolder, SDL_R
   anykeyHolder->x = (WIDTH-anykeyHolder->w)/2;
   anykeyHolder->y = (HEIGHT-gameoverHolder->h)/2;
 
-}
-
-void initialiseShields(SDL_Rect shields[4])
-{
-  for(int i = 0; i < 4; ++i)
-  {
-    shields[i].w = 88;
-    shields[i].h = 64;
-    shields[i].y = HEIGHT - 30 - shields[i].h*2;
-    shields[i].x = (WIDTH-(shields[i].w*4))/8 + i*(shields[i].w+(WIDTH-(shields[i].w*4))/4);
-  }
 }
 
 void initialiseScreenStuff( SDL_Rect *infoLine, SDL_Rect *bottomLine, SDL_Rect *screen, SDL_Rect *scoreHolder,

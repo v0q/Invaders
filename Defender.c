@@ -1,8 +1,17 @@
+/*
+ Copyright © 2015 Teemu Lindborg
+*/
+
 #include "Defender.h"
 
+// -----------------------------------------------------------------------------------------------------------------------
+/// @file Defender.c
+/// @brief Defender's functionality
+// -----------------------------------------------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------------------------------------------------
 void initialiseDefender(SDL_Rect spaceShip[2], SDL_Rect projectile[2], SDL_Rect projectileBoom[2])
 {
-  // Initializing the spaceship "holders", positions and projectiles
   for(int i = 0; i < 2; ++i)
   {
     spaceShip[i].y = HEIGHT-50;
@@ -14,17 +23,18 @@ void initialiseDefender(SDL_Rect spaceShip[2], SDL_Rect projectile[2], SDL_Rect 
     projectile[i].h = 8;
 
     projectileBoom[i].y = INFOBOXHEIGHT+5;
+    projectileBoom[i].w = SPRITEWIDTH;
+    projectileBoom[i].h = 20;
   }
 }
 
+// -----------------------------------------------------------------------------------------------------------------------
 void moveSpaceShip(SDL_Rect *spaceShip, int moveDir)
 {
-  // Movement stuff
   switch(moveDir)
   {
     case LEFT:
     {
-      // Stop the player from beying able to move past the left side of the screen
       if(spaceShip->x > 0)
       {
         spaceShip->x -= 5;
@@ -37,7 +47,6 @@ void moveSpaceShip(SDL_Rect *spaceShip, int moveDir)
     }
     case RIGHT:
     {
-      // Stop the player from beying able to move past the right side of the screen
       if(spaceShip->x < WIDTH-SPRITEWIDTH)
       {
         spaceShip->x += 5;
@@ -46,15 +55,14 @@ void moveSpaceShip(SDL_Rect *spaceShip, int moveDir)
       {
         spaceShip->x = WIDTH-SPRITEWIDTH;
       }
-
       break;
     }
   }
 }
 
+// -----------------------------------------------------------------------------------------------------------------------
 void drawSpaceShip(SDL_Renderer *ren, SDL_Texture *tex, SDL_Rect *spaceShip, int *playerDead, char *lives, int player)
 {
-  // initialise the sprite rect, the explosion timer and the explosion frame stuff
   SDL_Rect sS_sprite;
   static int destroySequence = 0;
   static int explosionSpriteTime = 0;
@@ -62,7 +70,6 @@ void drawSpaceShip(SDL_Renderer *ren, SDL_Texture *tex, SDL_Rect *spaceShip, int
 
   if(!*playerDead)
   {
-    // Sprite coordinates when player's not dead
     sS_sprite.x = 131;
     sS_sprite.y = 623;
     sS_sprite.w = 73;
@@ -72,16 +79,13 @@ void drawSpaceShip(SDL_Renderer *ren, SDL_Texture *tex, SDL_Rect *spaceShip, int
   }
   else
   {
-    // If player died, start the destroy sequence and set the length of it to be 50 frames
     if(destroySequence%10 == 0)
     {
-      // This changes the explosion sprite to "flash" between the two sprites as in the original game
       ++explosionSpriteTime;
       if(explosionSpriteTime%2 == 0)
         explosionSpriteTime = 0;
 
     }
-    // Changing the sprite coordinates to match the two different explosion frames
     if(explosionSpriteTime)
     {
       sS_sprite.x=340;
@@ -103,7 +107,6 @@ void drawSpaceShip(SDL_Renderer *ren, SDL_Texture *tex, SDL_Rect *spaceShip, int
   if(destroySequence == 50)
   {
     destroySequence = 0;
-    // As lives is a char, the comparison happens in ASCII values, thus we'll be creating a variable that holds the ascii value of 0
     int life = '0';
     if(lives[0] > life)
     {
@@ -119,6 +122,7 @@ void drawSpaceShip(SDL_Renderer *ren, SDL_Texture *tex, SDL_Rect *spaceShip, int
   SDL_RenderCopyEx(ren, tex, &sS_sprite, spaceShip, 0.0, NULL, flip);
 }
 
+// -----------------------------------------------------------------------------------------------------------------------
 void shootPewPew(SDL_Renderer *ren, SDL_Rect *projectile, int level)
 {
   int levelAdjustment;
@@ -134,4 +138,36 @@ void shootPewPew(SDL_Renderer *ren, SDL_Rect *projectile, int level)
 
   SDL_SetRenderDrawColor(ren, 255, 255, 255, 255);
   SDL_RenderFillRect(ren, projectile);
+}
+
+// -----------------------------------------------------------------------------------------------------------------------
+void renderLives(SDL_Renderer *ren, SDL_Texture *tex, char *lives, int player, int players)
+{
+  SDL_Rect livesSprite;
+  livesSprite.x = 131;
+  livesSprite.y = 623;
+  livesSprite.w = 73;
+  livesSprite.h = 52;
+
+  SDL_Rect livesTextHolder;
+  livesTextHolder.w = SPRITEWIDTH;
+  livesTextHolder.h = 20;
+  livesTextHolder.y = HEIGHT-25;
+
+  SDL_SetTextureColorMod(tex, 35, 255, 0);
+  for(int i = '1'; i < lives[0]; ++i)
+  {
+    if(players)
+    {
+      if(player)
+        livesTextHolder.x = 25 * ((i%49)+1)+((i%49)*15);
+      else
+        livesTextHolder.x = WIDTH - (25 * ((i%49)+1)+((i%49)*15) + SPRITEWIDTH);
+    }
+    else
+      livesTextHolder.x = 25 * ((i%49)+1)+((i%49)*15);
+
+    SDL_RenderCopy(ren, tex, &livesSprite, &livesTextHolder);
+  }
+  SDL_SetTextureColorMod(tex, 255, 255, 255);
 }
