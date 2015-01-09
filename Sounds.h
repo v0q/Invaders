@@ -22,13 +22,13 @@
 
 // -----------------------------------------------------------------------------------------------------------------------
 /// @brief Loads all the needed sound files to the memory
-/// @param[in] music To which our sounds that will be used to create the background music
-/// @param[in] shoot To which shooting sound will be loaded
-/// @param[in] invaderkilled To which invader death sound will be loaded
-/// @param[in] ufo_lp To which the ufo sound will be loaded
-/// @param[in] explosion To which the explosion sound will be loaded
+/// @param[out] music To which our sounds that will be used to create the background music
+/// @param[out] shoot To which shooting sound will be loaded
+/// @param[out] invaderkilled To which invader death sound will be loaded
+/// @param[out] ufo_lp To which the ufo sound will be loaded
+/// @param[out] explosion To which the explosion sound will be loaded
 // -----------------------------------------------------------------------------------------------------------------------
-void loadSounds(Mix_Chunk *music[4], Mix_Chunk **shoot, Mix_Chunk **invaderkilled, Mix_Chunk **ufo_lp, Mix_Chunk **explosion);
+void loadSounds(Mix_Chunk *o_music[4], Mix_Chunk **o_shoot, Mix_Chunk **o_invaderkilled, Mix_Chunk **o_ufo_lp, Mix_Chunk **o_explosion);
 
 // -----------------------------------------------------------------------------------------------------------------------
 /// @brief Function that will play the sound chunk that's passed on to it in the desired channel for x loops
@@ -36,14 +36,14 @@ void loadSounds(Mix_Chunk *music[4], Mix_Chunk **shoot, Mix_Chunk **invaderkille
 /// @param[in] chanToPlay In which channel the chunk will be played (different channels are used for different sounds)
 /// @param[in] loops How many times the sound should be played
 // -----------------------------------------------------------------------------------------------------------------------
-void playSound(Mix_Chunk *sound, int chanToPlay, int loops);
+void playSound(Mix_Chunk *_sound, int _chanToPlay, int _loops);
 
 // -----------------------------------------------------------------------------------------------------------------------
 /// @brief The function that will play the background music/sounds depending on the current gamespeed
 /// @param[in] gameSpeed To tell the function how fast/at what intervals should the sounds be played in
 /// @param[in] music The actual sound chunks to be played
 // -----------------------------------------------------------------------------------------------------------------------
-void playMusic(int gameSpeed, Mix_Chunk *music[4]);
+void playMusic(int _gameSpeed, Mix_Chunk *_music[4]);
 
 // -----------------------------------------------------------------------------------------------------------------------
 /// @brief Frees the chunks from the memory
@@ -53,6 +53,6 @@ void playMusic(int gameSpeed, Mix_Chunk *music[4]);
 /// @param[in] ufo_lowpitch Ufo sound to be freed
 /// @param[in] explosion Explosion sound to be freed
 // -----------------------------------------------------------------------------------------------------------------------
-void freeSounds(Mix_Chunk *music[4], Mix_Chunk **shoot, Mix_Chunk **invaderkilled, Mix_Chunk **ufo_lowpitch, Mix_Chunk **explosion);
+void freeSounds(Mix_Chunk *_music[4], Mix_Chunk **_shoot, Mix_Chunk **_invaderkilled, Mix_Chunk **_ufo_lowpitch, Mix_Chunk **_explosion);
 
 #endif // end SOUNDS_H

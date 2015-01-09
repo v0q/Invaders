@@ -32,7 +32,7 @@ int initialiseSDL();
 /// @param[out] bigfont To which the bigger font will be assigned to
 /// @return 0 or EXIT_FAILURE on failure
 // -----------------------------------------------------------------------------------------------------------------------
-int initialiseRenWinFonts(SDL_Window **win, SDL_Renderer **ren, TTF_Font **font, TTF_Font **bigfont);
+int initialiseRenWinFonts(SDL_Window **o_win, SDL_Renderer **o_ren, TTF_Font **o_font, TTF_Font **o_bigfont);
 
 // -----------------------------------------------------------------------------------------------------------------------
 /// @brief Initialises the screen and some visual ques/boundaries that separate an "info area" from the actual play area
@@ -41,7 +41,7 @@ int initialiseRenWinFonts(SDL_Window **win, SDL_Renderer **ren, TTF_Font **font,
 /// @param[out] screen The actual screen dimension
 /// @param[out] livesHolder The rect that holds the lives
 // -----------------------------------------------------------------------------------------------------------------------
-void initialiseScreenStuff(SDL_Rect *infoLine, SDL_Rect *bottomLine, SDL_Rect *screen, SDL_Rect livesHolder[2]);
+void initialiseScreenStuff(SDL_Rect *o_infoLine, SDL_Rect *o_bottomLine, SDL_Rect *o_screen, SDL_Rect o_livesHolder[2]);
 
 // -----------------------------------------------------------------------------------------------------------------------
 /// @brief Generates a SDL_Texture from the text passed in to the function
@@ -50,7 +50,7 @@ void initialiseScreenStuff(SDL_Rect *infoLine, SDL_Rect *bottomLine, SDL_Rect *s
 /// @param[in] textToRender Text the texture will be created of
 /// @return A texture created from the text and font
 // -----------------------------------------------------------------------------------------------------------------------
-SDL_Texture *textureFromText(SDL_Renderer *ren, TTF_Font *font, char *textToRender);
+SDL_Texture *textureFromText(SDL_Renderer *_ren, TTF_Font *_font, char *_textToRender);
 
 // -----------------------------------------------------------------------------------------------------------------------
 /// @brief Creates a texture of a png image located in "sprites/" with the given name. First it loads the image into a
@@ -59,7 +59,7 @@ SDL_Texture *textureFromText(SDL_Renderer *ren, TTF_Font *font, char *textToRend
 /// @param[in] sprite The name of the image-file that will be loaded to a texture
 /// @return A texture that was loaded or error if sprite(sheet) not found
 // -----------------------------------------------------------------------------------------------------------------------
-SDL_Texture *loadTexture(SDL_Renderer *ren, char *sprite);
+SDL_Texture *loadTexture(SDL_Renderer *_ren, char *_sprite);
 
 // -----------------------------------------------------------------------------------------------------------------------
 /// @brief Initialises most of the rects and their positions in which the corresponding textures are rendered at any given
@@ -853,25 +853,25 @@ int initialiseSDL()
 }
 
 // -----------------------------------------------------------------------------------------------------------------------
-int initialiseRenWinFonts(SDL_Window **win, SDL_Renderer **ren, TTF_Font **font, TTF_Font **bigfont)
+int initialiseRenWinFonts(SDL_Window **o_win, SDL_Renderer **o_ren, TTF_Font **o_font, TTF_Font **o_bigfont)
 {
-  *win = SDL_CreateWindow("Invaders", 100, 100, WIDTH, HEIGHT, SDL_WINDOW_SHOWN);
-  if (*win == 0)
+  *o_win = SDL_CreateWindow("Invaders", 100, 100, WIDTH, HEIGHT, SDL_WINDOW_SHOWN);
+  if (*o_win == 0)
   {
     printf("%s\n",SDL_GetError());
     return EXIT_FAILURE;
   }
-  *ren = SDL_CreateRenderer(*win, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
-  if (*ren == 0)
+  *o_ren = SDL_CreateRenderer(*o_win, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+  if (*o_ren == 0)
   {
     printf("%s\n",SDL_GetError() );
     return EXIT_FAILURE;
   }
 
-  *font = TTF_OpenFont("fonts/space_invaders.ttf", FONTSIZE);
-  *bigfont = TTF_OpenFont("fonts/space_invaders.ttf", FONTSIZE*4);
+  *o_font = TTF_OpenFont("fonts/space_invaders.ttf", FONTSIZE);
+  *o_bigfont = TTF_OpenFont("fonts/space_invaders.ttf", FONTSIZE*4);
 
-  if(*font == NULL || *bigfont == NULL)
+  if(*o_font == NULL || *o_bigfont == NULL)
   {
     printf("BOOM FAILED %s\n", TTF_GetError());
     return EXIT_FAILURE;
@@ -881,40 +881,40 @@ int initialiseRenWinFonts(SDL_Window **win, SDL_Renderer **ren, TTF_Font **font,
 }
 
 // -----------------------------------------------------------------------------------------------------------------------
-void initialiseScreenStuff(SDL_Rect *infoLine, SDL_Rect *bottomLine, SDL_Rect *screen, SDL_Rect livesHolder[2])
+void initialiseScreenStuff(SDL_Rect *o_infoLine, SDL_Rect *o_bottomLine, SDL_Rect *o_screen, SDL_Rect o_livesHolder[2])
 {
-  infoLine->x = 0;
-  infoLine->y = INFOBOXHEIGHT;
-  infoLine->w = WIDTH;
-  infoLine->h = 5;
+  o_infoLine->x = 0;
+  o_infoLine->y = INFOBOXHEIGHT;
+  o_infoLine->w = WIDTH;
+  o_infoLine->h = 5;
 
-  bottomLine->x = 0;
-  bottomLine->y = HEIGHT-30;
-  bottomLine->w = WIDTH;
-  bottomLine->h = 3;
+  o_bottomLine->x = 0;
+  o_bottomLine->y = HEIGHT-30;
+  o_bottomLine->w = WIDTH;
+  o_bottomLine->h = 3;
 
-  screen->x = 0;
-  screen->y = 0;
-  screen->w = WIDTH;
-  screen->h = HEIGHT;
+  o_screen->x = 0;
+  o_screen->y = 0;
+  o_screen->w = WIDTH;
+  o_screen->h = HEIGHT;
 
   for(int i = 0; i < 2; ++i)
   {
-    livesHolder[i].w = 0;
-    livesHolder[i].h = 0;
-    livesHolder[i].y = bottomLine->y + FONTSIZE/2;
+    o_livesHolder[i].w = 0;
+    o_livesHolder[i].h = 0;
+    o_livesHolder[i].y = o_bottomLine->y + FONTSIZE/2;
   }
 }
 
 // -----------------------------------------------------------------------------------------------------------------------
-SDL_Texture *textureFromText(SDL_Renderer *ren, TTF_Font *font, char *textToRender)
+SDL_Texture *textureFromText(SDL_Renderer *_ren, TTF_Font *_font, char *_textToRender)
 {
   SDL_Texture *texture;
   SDL_Color fontColor = {255, 255, 255, 255};
 
-  SDL_Surface *textureSurface = TTF_RenderText_Solid(font, textToRender, fontColor);
+  SDL_Surface *textureSurface = TTF_RenderText_Solid(_font, _textToRender, fontColor);
 
-  texture = SDL_CreateTextureFromSurface(ren, textureSurface);
+  texture = SDL_CreateTextureFromSurface(_ren, textureSurface);
   SDL_FreeSurface(textureSurface);
 
   return texture;

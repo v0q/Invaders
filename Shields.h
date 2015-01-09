@@ -22,25 +22,25 @@
 // -----------------------------------------------------------------------------------------------------------------------
 /// @brief Loads/refreshes the shield surfaces and textures
 /// @param[in] ren Renderer that the render data gets passed to
-/// @param[in] shieldSurface Surfaces holding the image data (needed for pixel manipulation)
-/// @param[in] shieldTexture Textures that are loaded from the surfaces to be used for the actual rendering
+/// @param[out] shieldSurface Surfaces holding the image data (needed for pixel manipulation)
+/// @param[out] shieldTexture Textures that are loaded from the surfaces to be used for the actual rendering
 // -----------------------------------------------------------------------------------------------------------------------
-void loadShields(SDL_Renderer *ren, SDL_Surface *shieldSurface[4], SDL_Texture *shieldTexture[4]);
+void loadShields(SDL_Renderer *_ren, SDL_Surface *o_shieldSurface[4], SDL_Texture *o_shieldTexture[4]);
 
 // -----------------------------------------------------------------------------------------------------------------------
-/// @brief initialiseShields
-/// @param shields The rects to which the dimensions and positions of the shields will be stored
+/// @brief Initialises the correct positions for each shield
+/// @param[io] shields The rects to which the dimensions and positions of the shields will be stored
 // -----------------------------------------------------------------------------------------------------------------------
-void initialiseShields(SDL_Rect shields[4]);
+void initialiseShields(SDL_Rect io_shields[4]);
 
 // -----------------------------------------------------------------------------------------------------------------------
 /// @brief Actual pixel manipulation
-/// @param[in] shieldSurface The surface that will be manipulated
+/// @param[io] shieldSurface The surface that will be manipulated
 /// @param[in] x X-coordinate in the surface where the projectile hit
 /// @param[in] y Y-coordinate in the surface where the projectile hit
 /// @param[in] PlorIn Whether a player or an invader hit the shield (flips and changes the direction of the "explosion")
 // -----------------------------------------------------------------------------------------------------------------------
-void editPixel(SDL_Surface *shieldSurface, int x, int y, int PlorIn);
+void editPixel(SDL_Surface *io_shieldSurface, int _x, int _y, int _PlorIn);
 
 // -----------------------------------------------------------------------------------------------------------------------
 /// @brief Checks whether the pixel is still "active" i.e. not black
@@ -49,6 +49,6 @@ void editPixel(SDL_Surface *shieldSurface, int x, int y, int PlorIn);
 /// @param[in] y Y-coordinate in the surface where the projectile hit
 /// @return The colour of the pixel hit as a Uint32
 // -----------------------------------------------------------------------------------------------------------------------
-Uint32 pixelActive(SDL_Surface *shieldSurface, int x, int y);
+Uint32 pixelActive(SDL_Surface *_shieldSurface, int _x, int _y);
 
 #endif // end SHIELDS_H

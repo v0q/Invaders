@@ -26,37 +26,37 @@ typedef enum {LEFT,RIGHT} direction;
 
 // -----------------------------------------------------------------------------------------------------------------------
 /// @brief Function for assigning initial values for the players' position
-/// @param[in] spaceShip an array holding the dimensions and position of two players/defenders
-/// @param[in] projectile an array holding the dimensions and position for the projectiles for two players/defenders
-/// @param[in] projectileBoom an array holding the dimensions and the initial y-position of the explosion of a projectile
+/// @param[out] spaceShip an array holding the dimensions and position of two players/defenders
+/// @param[out] projectile an array holding the dimensions and position for the projectiles for two players/defenders
+/// @param[out] projectileBoom an array holding the dimensions and the initial y-position of the explosion of a projectile
 // -----------------------------------------------------------------------------------------------------------------------
-void initialiseDefender(SDL_Rect spaceShip[2], SDL_Rect projectile[2], SDL_Rect projectileBoom[2]);
+void initialiseDefender(SDL_Rect o_spaceShip[2], SDL_Rect o_projectile[2], SDL_Rect o_projectileBoom[2]);
 
 // -----------------------------------------------------------------------------------------------------------------------
 /// @brief Handles the movement of the defender that's passed in to the function (supports both players)
-/// @param[in] spaceShip Holds the defender's data that'll be modified to move the player
+/// @param[io] spaceShip Holds the defender's data that'll be modified to move the player
 /// @param[in] moveDir The direction that the player wants to move the defender
 // -----------------------------------------------------------------------------------------------------------------------
-void moveSpaceShip(SDL_Rect *spaceShip, int moveDir);
+void moveSpaceShip(SDL_Rect *io_spaceShip, int _moveDir);
 
 // -----------------------------------------------------------------------------------------------------------------------
 /// @brief Render the spaceship that's passed on to the function (used to render both players)
 /// @param[in] ren Renderer that the render data gets passed to
 /// @param[in] sStexture The texture holding the defender
 /// @param[in] spaceShip The actual defender that will be rendered
-/// @param[in] playerDead A variable that holds the "state" of a players death: 0 = not dead, 1 = died and should explode, 2 = dead, no more lives
+/// @param[io] playerDead A variable that holds the "state" of a players death: 0 = not dead, 1 = died and should explode, 2 = dead, no more lives
 /// @param[in] lives Player's lives to check whether the player dies completely or just loses a life
 /// @param[in] player Player 1 or 2
 // -----------------------------------------------------------------------------------------------------------------------
-void drawSpaceShip(SDL_Renderer *ren, SDL_Texture *sStexture, SDL_Rect *spaceShip, int *playerDead, char *lives, int player);
+void drawSpaceShip(SDL_Renderer *_ren, SDL_Texture *_sStexture, SDL_Rect *_spaceShip, int *io_playerDead, char *_lives, int _player);
 
 // -----------------------------------------------------------------------------------------------------------------------
 /// @brief Handle the player shooting
 /// @param[in] ren Renderer that the render data gets passed to
-/// @param[in] projectile The data of the projectile used to rendering it and moving it
+/// @param[io] projectile The data of the projectile used to rendering it and moving it
 /// @param[in] level Current level as the speed of the projectile depends on the level
 // -----------------------------------------------------------------------------------------------------------------------
-void shootPewPew(SDL_Renderer *ren, SDL_Rect *projectile, int level);
+void shootPewPew(SDL_Renderer *_ren, SDL_Rect *io_projectile, int _level);
 
 // -----------------------------------------------------------------------------------------------------------------------
 /// @brief explodeProjectile
@@ -65,7 +65,7 @@ void shootPewPew(SDL_Renderer *ren, SDL_Rect *projectile, int level);
 /// @param[in] tex The texture holding the explosion sprite
 /// @param[io] explodeP A variable that tells when the projectile should be exploding, will reset after certain amount of frames
 // -----------------------------------------------------------------------------------------------------------------------
-void explodeProjectile(SDL_Renderer *ren, SDL_Rect *projectileBoom, SDL_Texture *tex, int *explodeP);
+void explodeProjectile(SDL_Renderer *_ren, SDL_Rect *_projectileBoom, SDL_Texture *_tex, int *o_explodeP);
 
 // -----------------------------------------------------------------------------------------------------------------------
 /// @brief Render the lives as defenders to the bottom of the screen
@@ -76,6 +76,6 @@ void explodeProjectile(SDL_Renderer *ren, SDL_Rect *projectileBoom, SDL_Texture 
 /// @param[in] players A check whether the game is played in one or two player mode to determine
 ///            on which side the lives should be rendered
 // -----------------------------------------------------------------------------------------------------------------------
-void renderLives(SDL_Renderer *ren, SDL_Texture *tex, char *lives, int player, int players);
+void renderLives(SDL_Renderer *_ren, SDL_Texture *_tex, char *_lives, int _player, int _players);
 
 #endif // end DEFENDER_H

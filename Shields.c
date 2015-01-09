@@ -11,56 +11,56 @@
 // -----------------------------------------------------------------------------------------------------------------------
 
 // -----------------------------------------------------------------------------------------------------------------------
-void loadShields(SDL_Renderer *ren, SDL_Surface *shieldSurface[4], SDL_Texture *shieldTexture[4])
+void loadShields(SDL_Renderer *_ren, SDL_Surface *o_shieldSurface[4], SDL_Texture *o_shieldTexture[4])
 {
   for(int i = 0; i < 4; ++i)
   {
-    shieldSurface[i] = IMG_Load("sprites/shieldTexture.png");
-    if(!shieldSurface[i])
+    o_shieldSurface[i] = IMG_Load("sprites/shieldTexture.png");
+    if(!o_shieldSurface[i])
     {
      printf("IMG_Load: %s\n", IMG_GetError());
      return;
     }
-    shieldTexture[i] = SDL_CreateTextureFromSurface(ren, shieldSurface[i]);
+    o_shieldTexture[i] = SDL_CreateTextureFromSurface(_ren, o_shieldSurface[i]);
   }
 }
 
 // -----------------------------------------------------------------------------------------------------------------------
-void initialiseShields(SDL_Rect shields[4])
+void initialiseShields(SDL_Rect io_shields[4])
 {
   for(int i = 0; i < 4; ++i)
   {
-    shields[i].w = 88;
-    shields[i].h = 64;
-    shields[i].y = HEIGHT - 30 - shields[i].h*2;
-    shields[i].x = (WIDTH-(shields[i].w*4))/8 + i*(shields[i].w+(WIDTH-(shields[i].w*4))/4);
+    io_shields[i].w = 88;
+    io_shields[i].h = 64;
+    io_shields[i].y = HEIGHT - 30 - io_shields[i].h*2;
+    io_shields[i].x = (WIDTH-(io_shields[i].w*4))/8 + i*(io_shields[i].w+(WIDTH-(io_shields[i].w*4))/4);
   }
 }
 
 // -----------------------------------------------------------------------------------------------------------------------
-void editPixel(SDL_Surface *shieldSurface, int x, int y, int PlorIn)
+void editPixel(SDL_Surface *io_shieldSurface, int _x, int _y, int _PlorIn)
 {
   Uint8 *index;
   Uint32 *colour;
   srand(clock());
   int randomPattern = rand()%4;
-  index = (Uint8 *)shieldSurface->pixels;
+  index = (Uint8 *)io_shieldSurface->pixels;
 
-  switch(PlorIn)
+  switch(_PlorIn)
   {
     case 0:
     {
       for(int r = 0; r < 12; ++r)
       {
-        if((y-r) >= 0)
+        if((_y-r) >= 0)
         {
           for(int c = 0; c < 6; ++c)
           {
-            if((x+(c-3)) >= 0 && (x+(c-3)) < shieldSurface->w)
+            if((_x+(c-3)) >= 0 && (_x+(c-3)) < io_shieldSurface->w)
             {
               if(explosionPattern[randomPattern][r][c])
               {
-                colour = (Uint32 *)&index[(shieldSurface->pitch*(y-r) + shieldSurface->format->BytesPerPixel*(x+(c-3)))];
+                colour = (Uint32 *)&index[(io_shieldSurface->pitch*(_y-r) + io_shieldSurface->format->BytesPerPixel*(_x+(c-3)))];
                 *colour = 0x00000000;
               }
             }
@@ -79,15 +79,15 @@ void editPixel(SDL_Surface *shieldSurface, int x, int y, int PlorIn)
     {
       for(int r = 0; r < 12; ++r)
       {
-        if((y+r) < shieldSurface->h)
+        if((_y+r) < io_shieldSurface->h)
         {
           for(int c = 0; c < 6; ++c)
           {
-            if((x+(c-3)) >= 0 && (x+(c-3)) < shieldSurface->w)
+            if((_x+(c-3)) >= 0 && (_x+(c-3)) < io_shieldSurface->w)
             {
               if(explosionPattern[randomPattern][r][c])
               {
-                colour = (Uint32 *)&index[(shieldSurface->pitch*(y+r) + shieldSurface->format->BytesPerPixel*(x+(c-3)))];
+                colour = (Uint32 *)&index[(io_shieldSurface->pitch*(_y+r) + io_shieldSurface->format->BytesPerPixel*(_x+(c-3)))];
                 *colour = 0x00000000;
               }
             }
@@ -107,11 +107,11 @@ void editPixel(SDL_Surface *shieldSurface, int x, int y, int PlorIn)
 }
 
 // -----------------------------------------------------------------------------------------------------------------------
-Uint32 pixelActive(SDL_Surface *shieldSurface, int x, int y)
+Uint32 pixelActive(SDL_Surface *_shieldSurface, int _x, int _y)
 {
   Uint8 *index;
   Uint32 *value;
-  index = (Uint8 *)shieldSurface->pixels;
-  value = (Uint32 *)&index[(shieldSurface->pitch*y + shieldSurface->format->BytesPerPixel*x)];
+  index = (Uint8 *)_shieldSurface->pixels;
+  value = (Uint32 *)&index[(_shieldSurface->pitch*_y + _shieldSurface->format->BytesPerPixel*_x)];
   return *value;
 }
