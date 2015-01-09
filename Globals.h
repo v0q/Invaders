@@ -7,6 +7,7 @@
 #include <SDL_ttf.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 
 #define WIDTH 800
 #define HEIGHT 600

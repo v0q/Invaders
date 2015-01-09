@@ -1,5 +1,28 @@
 #include "Sounds.h"
 
+void loadSounds(Mix_Chunk *music[4], Mix_Chunk **shoot, Mix_Chunk **invaderkilled, Mix_Chunk **ufo_lp, Mix_Chunk **explosion)
+{
+  music[0] = Mix_LoadWAV("sounds/fastinvader1.wav");
+  music[1] = Mix_LoadWAV("sounds/fastinvader2.wav");
+  music[2] = Mix_LoadWAV("sounds/fastinvader3.wav");
+  music[3] = Mix_LoadWAV("sounds/fastinvader4.wav");
+  *shoot = Mix_LoadWAV("sounds/shoot.wav");
+  *invaderkilled = Mix_LoadWAV("sounds/invaderkilled.wav");
+  *ufo_lp = Mix_LoadWAV("sounds/ufo_lowpitch.wav");
+  *explosion = Mix_LoadWAV("sounds/explosion.wav");
+
+  if((music[0] == NULL) ||
+     (music[1] == NULL) ||
+     (music[2] == NULL) ||
+     (music[3] == NULL) ||
+     (shoot == NULL) ||
+     (invaderkilled == NULL) ||
+     (ufo_lp == NULL) ||
+     (explosion == NULL)) {
+      fprintf(stderr, "Unable to load WAV file: %s\n", Mix_GetError());
+  }
+}
+
 void playSound(Mix_Chunk *sound, int chanToPlay, int loops)
 {
 
@@ -70,4 +93,15 @@ void playMusic(int gameSpeed, Mix_Chunk *music[4])
         }
     }
 
+}
+
+void freeSounds(Mix_Chunk *music[4], Mix_Chunk **shoot, Mix_Chunk **invaderkilled, Mix_Chunk **ufo_lowpitch)
+{
+  Mix_FreeChunk(music[0]);
+  Mix_FreeChunk(music[1]);
+  Mix_FreeChunk(music[2]);
+  Mix_FreeChunk(music[3]);
+  Mix_FreeChunk(*shoot);
+  Mix_FreeChunk(*invaderkilled);
+  Mix_FreeChunk(*ufo_lowpitch);
 }

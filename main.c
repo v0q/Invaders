@@ -1,25 +1,25 @@
-#include <time.h>
-#include "Definitions.h"
-#include "ExplosionPatterns.h"
+#include "Globals.h"
 #include "Invader.h"
 #include "Defender.h"
 #include "Sounds.h"
+#include "Shields.h"
 
 // Declaring the functions
 
-void initializeShields(SDL_Rect shields[4]);
-void initializeScreenStuff( SDL_Rect *infoLine, SDL_Rect *bottomLine, SDL_Rect *screen, SDL_Rect *scoreHolder,
+void initialiseShields(SDL_Rect shields[4]);
+void initialiseScreenStuff( SDL_Rect *infoLine, SDL_Rect *bottomLine, SDL_Rect *screen, SDL_Rect *scoreHolder,
                             SDL_Rect *highscoreHolder, SDL_Rect livesHolder[2], SDL_Rect *levelHolder,
                             SDL_Rect *p1keysHolder, SDL_Rect *p2keysHolder);
+
+int initialiseSDL();
+int initialiseRenWinFonts(SDL_Window **win, SDL_Renderer **ren, TTF_Font **font, TTF_Font **bigfont);
 
 void explodeProjectile(SDL_Renderer *ren, SDL_Rect *projectileBoom, SDL_Texture *tex, int *explodeP);
 
 void renderLives(SDL_Renderer *ren, SDL_Texture *tex, char *lives, int player, int players);
 
 SDL_Texture *textureFromText(SDL_Renderer *ren, TTF_Font *font, char *textToRender);
-
-void editPixel(SDL_Surface *shieldSurface, int x, int y, int PlorIn);
-Uint32 pixelActive(SDL_Surface *shieldSurface, int x, int y);
+SDL_Texture *loadTexture(SDL_Renderer *ren, char *sprite);
 
 void initFirstScreen(SDL_Rect *mainTextHolder, SDL_Rect *scoreTableHolder, SDL_Rect *alienPtsHolder,
                      SDL_Rect *invT3Holder, SDL_Rect *invT2Holder, SDL_Rect *invT1Holder, SDL_Rect invader[4],
@@ -41,19 +41,16 @@ int main()
 // --------------- INITIALIZING STUFF START ------------------
 // -----------------------------------------------------------
   Invader invaders[ROWS][COLS], alien;
-  SDL_Rect spaceShip[2], projectile[2], projectileBoom[2];
-  SDL_Rect shields[4];
+  SDL_Rect spaceShip[2], projectile[2], projectileBoom[2], shields[4], invaderProjectile[COLS];
   // "Screen" related stuff
   SDL_Rect infoLine, bottomLine, screen, scoreHolder, highscoreHolder, livesHolder[2], levelHolder, p1keysHolder, p2keysHolder;
-  SDL_Rect invaderProjectile[COLS];
-  int actInvaderInRow[COLS], invaderProjectileActive[COLS];
-
-  initializeInvaders(invaders, &alien, invaderProjectile, actInvaderInRow, invaderProjectileActive);
-  initializeDefender(spaceShip, projectile, projectileBoom);
-  initializeShields(shields);
-  initializeScreenStuff(&infoLine, &bottomLine, &screen, &scoreHolder, &highscoreHolder, livesHolder, &levelHolder, &p1keysHolder, &p2keysHolder);
 
   FILE *hsFile;
+
+  SDL_Window *win = 0;
+  SDL_Renderer *ren = 0;
+  TTF_Font *font = NULL, *bigfont = NULL;
+  Mix_Chunk *music[4], *shoot, *invaderkilled, *ufo_lowpitch, *explosion;
 
   // Create a variable that records the key presses (continuous)
   const Uint8 *keystate = SDL_GetKeyboardState(NULL);
@@ -61,7 +58,7 @@ int main()
   // Some variables used all around
   int gameSpeed = 1;
   int projectileActive[2] = {0};
-  int direction = 0;
+  int alienDirection = 0;
   int explodeP[2] = {0};
   int currentFrame = 0;
   int quit=0;
@@ -78,134 +75,34 @@ int main()
   int currentSelectionCoords[2];
   int selection = 0;
 
-  // Initialize TTF
-  if(TTF_Init() == -1)
-  {
-    printf("%s\n", TTF_GetError());
-    return EXIT_FAILURE;
-  }
+  int actInvaderInRow[COLS], invaderProjectileActive[COLS];
 
-  TTF_Font* font = TTF_OpenFont("fonts/space_invaders.ttf", FONTSIZE);
-  TTF_Font* bigfont = TTF_OpenFont("fonts/space_invaders.ttf", FONTSIZE*4);
+  initialiseInvaders(invaders, &alien, invaderProjectile, actInvaderInRow, invaderProjectileActive);
+  initialiseDefender(spaceShip, projectile, projectileBoom);
+  initialiseShields(shields);
+  initialiseScreenStuff(&infoLine, &bottomLine, &screen, &scoreHolder, &highscoreHolder, livesHolder, &levelHolder, &p1keysHolder, &p2keysHolder);
 
-  if(font == NULL || bigfont == NULL)
-  {
-    printf("BOOM FAILED %s\n", TTF_GetError());
-  }
-
-
-  // initialise SDL and check that it worked otherwise exit
-  // see here for details http://wiki.libsdl.org/CategoryAPI
-  if (SDL_Init(SDL_INIT_EVERYTHING) == -1)
-  {
-    printf("%s\n",SDL_GetError());
-    return EXIT_FAILURE;
-  }
-
-  // Music stuff
-  int audio_rate = 22050;
-  Uint16 audio_format = AUDIO_S16SYS;
-  int audio_channels = 2;
-  int audio_buffers = 4096;
-
-  if(Mix_OpenAudio(audio_rate, audio_format, audio_channels, audio_buffers) != 0) {
-      fprintf(stderr, "Unable to initialize audio: %s\n", Mix_GetError());
-      exit(1);
-  }
-
-  Mix_Chunk *music[4];
-  Mix_Chunk *shoot = NULL;
-  Mix_Chunk *invaderkilled = NULL;
-  Mix_Chunk *ufo_lowpitch = NULL;
-  Mix_Chunk *explosion = NULL;
-
-  music[0] = Mix_LoadWAV("sounds/fastinvader1.wav");
-  music[1] = Mix_LoadWAV("sounds/fastinvader2.wav");
-  music[2] = Mix_LoadWAV("sounds/fastinvader3.wav");
-  music[3] = Mix_LoadWAV("sounds/fastinvader4.wav");
-  shoot = Mix_LoadWAV("sounds/shoot.wav");
-  invaderkilled = Mix_LoadWAV("sounds/invaderkilled.wav");
-  ufo_lowpitch = Mix_LoadWAV("sounds/ufo_lowpitch.wav");
-  explosion = Mix_LoadWAV("sounds/explosion.wav");
-
-  if((music[0] == NULL) ||
-     (music[1] == NULL) ||
-     (music[2] == NULL) ||
-     (music[3] == NULL) ||
-     (shoot == NULL) ||
-     (invaderkilled == NULL) ||
-     (ufo_lowpitch == NULL) ||
-     (explosion == NULL)) {
-      fprintf(stderr, "Unable to load WAV file: %s\n", Mix_GetError());
-  }
-
-  // we are now going to create an SDL window
-  SDL_Window *win = 0;
-  win = SDL_CreateWindow("Invaders", 100, 100, WIDTH, HEIGHT, SDL_WINDOW_SHOWN);
-  if (win == 0)
-  {
-    printf("%s\n",SDL_GetError());
-    return EXIT_FAILURE;
-  }
-  // the renderer is the core element we need to draw, each call to SDL for drawing will need the
-  // renderer pointer
-  SDL_Renderer *ren = 0;
-  ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
-  // check to see if this worked
-  if (ren == 0)
-  {
-    printf("%s\n",SDL_GetError() );
-    return EXIT_FAILURE;
-  }
-  // this will set the background colour to white.
-  // however we will overdraw all of this so only for reference
-  SDL_SetRenderDrawColor(ren, 255, 255, 255, 255);
-
-//  // SDL image is an abstraction for all images
-  SDL_Surface *image, *p1keys, *p2keys;
-//  // we are going to use the extension SDL_image library to load a png, documentation can be found here
-//  // http://www.libsdl.org/projects/SDL_image/
-  image = IMG_Load("sprites/sprites.png");
-  p1keys = IMG_Load("sprites/p1keys.png");
-  p2keys = IMG_Load("sprites/p2keys.png");
-  if(!image || !p1keys || !p2keys)
-  {
-    printf("IMG_Load: %s\n", IMG_GetError());
-    return EXIT_FAILURE;
-  }
-//  // SDL texture converts the image to a texture suitable for SDL rendering  / blitting
-//  // once we have the texture it will be store in hardware and we don't need the image data anymore
+  initialiseSDL();
+  initialiseRenWinFonts(&win, &ren, &font, &bigfont);
+  loadSounds(music, &shoot, &invaderkilled, &ufo_lowpitch, &explosion);
 
   SDL_Texture *tex, *p1ktex, *p2ktex;
-  tex = SDL_CreateTextureFromSurface(ren, image);
-  p1ktex = SDL_CreateTextureFromSurface(ren, p1keys);
-  p2ktex = SDL_CreateTextureFromSurface(ren, p2keys);
-  // free the image
-  SDL_FreeSurface(image);
-  SDL_FreeSurface(p1keys);
-  SDL_FreeSurface(p2keys);
+  tex = loadTexture(ren, "sprites");
+  p1ktex = loadTexture(ren, "p1keys");
+  p2ktex = loadTexture(ren, "p2keys");
 
-  // Initializing shield textures
   SDL_Surface *shieldSurface[4];
   SDL_Texture *shieldTexture[4];
+  loadShields(ren, shieldSurface, shieldTexture);
 
-  for(int i = 0; i < 4; ++i)
-  {
-    shieldSurface[i] = IMG_Load("sprites/shieldTexture.png");
-    if(!shieldSurface[i])
-    {
-     printf("IMG_Load: %s\n", IMG_GetError());
-     return EXIT_FAILURE;
-    }
-    shieldTexture[i] = SDL_CreateTextureFromSurface(ren, shieldSurface[i]);
-  }
+  SDL_SetRenderDrawColor(ren, 255, 255, 255, 255);
 
 
   // ---------------------------------------------------------
   // --------------- INIT TEXTURES ETC START -----------------
   // ---------------------------------------------------------
 
-    // Here we're just initializing the "variables" to be used for the start menus etc. (Game Over and Press any key... stuff also initialized and declared here)
+    // Here we're just initializing the "variables" to be used for the start menus etc. (Game Over and Press any key... stuff also initialised and declared here)
     SDL_Rect mainTextHolder, scoreTableHolder, alienPtsHolder, invT3Holder, invT2Holder, invT1Holder,
              invader[4], invaderSrcR[4], oneplayerHolder, twoplayersHolder, selectRect, gameoverHolder, anykeyHolder;
     SDL_Texture *mainTextTexture, *scoreTableTexture, *alienPtsTexture, *invT3Texture, *invT2Texture, *invT1Texture,
@@ -317,14 +214,12 @@ int main()
             {
               if(!selection)
               {
-                //printf("1 Player\n");
                 startgame = 1;
                 spaceShip[0].x = (WIDTH-SPRITEWIDTH)/2;
                 livesHolder[0].x = 5;
               }
               else
               {
-                //printf("2 Players\n");
                 startgame = 1;
                 spaceShip[0].x = 3*(WIDTH-SPRITEWIDTH)/4;
                 spaceShip[1].x = (WIDTH-SPRITEWIDTH)/4;
@@ -402,7 +297,7 @@ int main()
 
     if(newstart)
     {
-      initializeInvaders(invaders, &alien, invaderProjectile, actInvaderInRow, invaderProjectileActive);
+      initialiseInvaders(invaders, &alien, invaderProjectile, actInvaderInRow, invaderProjectileActive);
       gameSpeed = 1;
       currentFrame = 0;
       //playerDead[0] = 0;
@@ -423,16 +318,7 @@ int main()
           playerDead[i] = 0;
         }
 
-        for(int i = 0; i < 4; ++i)
-        {
-          shieldSurface[i] = IMG_Load("sprites/shieldTexture.png");
-          if(!shieldSurface[i])
-          {
-           printf("IMG_Load: %s\n", IMG_GetError());
-           return EXIT_FAILURE;
-          }
-          shieldTexture[i] = SDL_CreateTextureFromSurface(ren, shieldSurface[i]);
-        }
+        loadShields(ren, shieldSurface, shieldTexture);
 
         score = 0;
         sprintf(thescore, "Score: %04i", score);
@@ -671,12 +557,12 @@ int main()
     if(rand()%2 == 0)
     {
         alien.pos.x = -SPRITEWIDTH;
-        direction = 0;
+        alienDirection = 0;
     }
     else
     {
         alien.pos.x = WIDTH + SPRITEWIDTH;
-        direction = 1;
+        alienDirection = 1;
     }
   }
 
@@ -771,7 +657,7 @@ int main()
   // If alien has spawned, pass the data to the function that moves and renders the alien (ufo)
   if(alien.active)
   {
-    moveAlien(ren, tex, &alien, direction, ufo_lowpitch);
+    moveAlien(ren, tex, &alien, alienDirection, ufo_lowpitch);
   }
 
   // Check if all invaders have been killed and start a new game / level by re-initializing some of the variables that define
@@ -881,13 +767,8 @@ int main()
   }
 
   // After all else has been lost, i.e. when we finish/quit the game, free the music chunks, close the SDL_Mixer, SDL_ttf and SDL itself
-  Mix_FreeChunk(music[0]);
-  Mix_FreeChunk(music[1]);
-  Mix_FreeChunk(music[2]);
-  Mix_FreeChunk(music[3]);
-  Mix_FreeChunk(shoot);
-  Mix_FreeChunk(invaderkilled);
-  Mix_FreeChunk(ufo_lowpitch);
+
+  freeSounds(music, &shoot, &invaderkilled, &ufo_lowpitch);
   Mix_CloseAudio();
   TTF_Quit();
   SDL_Quit();
@@ -965,81 +846,25 @@ SDL_Texture *textureFromText(SDL_Renderer *ren, TTF_Font *font, char *textToRend
   return texture;
 }
 
-void editPixel(SDL_Surface *shieldSurface, int x, int y, int PlorIn)
+SDL_Texture *loadTexture(SDL_Renderer *ren, char *sprite)
 {
-  Uint8 *index;
-  Uint32 *colour;
-  srand(clock());
-  int randomPattern = rand()%4;
-  index = (Uint8 *)shieldSurface->pixels;
+  SDL_Surface *tmpSurface;
+  SDL_Texture *tmpTexture;
+  char *baseText = "sprites/%s.png";
+  char s[strlen(sprite) + strlen(baseText)];
+  sprintf(s, baseText, sprite);
+  tmpSurface = IMG_Load(s);
 
-  switch(PlorIn)
+  if(!tmpSurface)
   {
-    case 0:
-    {
-      for(int r = 0; r < 12; ++r)
-      {
-        if((y-r) >= 0)
-        {
-          for(int c = 0; c < 6; ++c)
-          {
-            if((x+(c-3)) >= 0 && (x+(c-3)) < shieldSurface->w)
-            {
-              if(explosionPattern[randomPattern][r][c])
-              {
-                colour = (Uint32 *)&index[(shieldSurface->pitch*(y-r) + shieldSurface->format->BytesPerPixel*(x+(c-3)))];
-                *colour = 0x00000000;
-              }
-            }
-            else
-              continue;
-          }
-        }
-        else
-        {
-          break;
-        }
-      }
-      break;
-    }
-    case 1:
-    {
-      for(int r = 0; r < 12; ++r)
-      {
-        if((y+r) < shieldSurface->h)
-        {
-          for(int c = 0; c < 6; ++c)
-          {
-            if((x+(c-3)) >= 0 && (x+(c-3)) < shieldSurface->w)
-            {
-              if(explosionPattern[randomPattern][r][c])
-              {
-                colour = (Uint32 *)&index[(shieldSurface->pitch*(y+r) + shieldSurface->format->BytesPerPixel*(x+(c-3)))];
-                *colour = 0x00000000;
-              }
-            }
-            else
-              continue;
-          }
-        }
-        else
-        {
-          break;
-        }
-      }
-    break;
-    }
+    printf("IMG_Load: %s\n", IMG_GetError());
+    return NULL;
   }
 
-}
+  tmpTexture = SDL_CreateTextureFromSurface(ren, tmpSurface);
+  SDL_FreeSurface(tmpSurface);
 
-Uint32 pixelActive(SDL_Surface *shieldSurface, int x, int y)
-{
-  Uint8 *index;
-  Uint32 *value;
-  index = (Uint8 *)shieldSurface->pixels;
-  value = (Uint32 *)&index[(shieldSurface->pitch*y + shieldSurface->format->BytesPerPixel*x)];
-  return *value;
+  return tmpTexture;
 }
 
 void initFirstScreen(SDL_Rect *mainTextHolder, SDL_Rect *scoreTableHolder, SDL_Rect *alienPtsHolder,
@@ -1150,7 +975,7 @@ void initFirstScreen(SDL_Rect *mainTextHolder, SDL_Rect *scoreTableHolder, SDL_R
 
 }
 
-void initializeShields(SDL_Rect shields[4])
+void initialiseShields(SDL_Rect shields[4])
 {
   for(int i = 0; i < 4; ++i)
   {
@@ -1161,7 +986,7 @@ void initializeShields(SDL_Rect shields[4])
   }
 }
 
-void initializeScreenStuff( SDL_Rect *infoLine, SDL_Rect *bottomLine, SDL_Rect *screen, SDL_Rect *scoreHolder,
+void initialiseScreenStuff( SDL_Rect *infoLine, SDL_Rect *bottomLine, SDL_Rect *screen, SDL_Rect *scoreHolder,
                             SDL_Rect *highscoreHolder, SDL_Rect livesHolder[2], SDL_Rect *levelHolder,
                             SDL_Rect *p1keysHolder, SDL_Rect *p2keysHolder)
 {
@@ -1206,4 +1031,58 @@ void initializeScreenStuff( SDL_Rect *infoLine, SDL_Rect *bottomLine, SDL_Rect *
 
   p2keysHolder->w = 2*226/3;
   p2keysHolder->h = 2*137/3;
+}
+
+int initialiseSDL()
+{
+  int audio_rate = 22050;
+  Uint16 audio_format = AUDIO_S16SYS;
+  int audio_channels = 2;
+  int audio_buffers = 4096;
+
+  if (SDL_Init(SDL_INIT_EVERYTHING) == -1)
+  {
+    printf("%s\n",SDL_GetError());
+    return EXIT_FAILURE;
+  }
+
+  if(TTF_Init() == -1)
+  {
+    printf("%s\n", TTF_GetError());
+    return EXIT_FAILURE;
+  }
+
+  if(Mix_OpenAudio(audio_rate, audio_format, audio_channels, audio_buffers) != 0) {
+      fprintf(stderr, "Unable to initialize audio: %s\n", Mix_GetError());
+      exit(1);
+  }
+
+  return 0;
+}
+
+int initialiseRenWinFonts(SDL_Window **win, SDL_Renderer **ren, TTF_Font **font, TTF_Font **bigfont)
+{
+  *win = SDL_CreateWindow("Invaders", 100, 100, WIDTH, HEIGHT, SDL_WINDOW_SHOWN);
+  if (*win == 0)
+  {
+    printf("%s\n",SDL_GetError());
+    return EXIT_FAILURE;
+  }
+  *ren = SDL_CreateRenderer(*win, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+  if (*ren == 0)
+  {
+    printf("%s\n",SDL_GetError() );
+    return EXIT_FAILURE;
+  }
+
+  *font = TTF_OpenFont("fonts/space_invaders.ttf", FONTSIZE);
+  *bigfont = TTF_OpenFont("fonts/space_invaders.ttf", FONTSIZE*4);
+
+  if(*font == NULL || *bigfont == NULL)
+  {
+    printf("BOOM FAILED %s\n", TTF_GetError());
+    return EXIT_FAILURE;
+  }
+
+  return 0;
 }

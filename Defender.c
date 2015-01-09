@@ -1,6 +1,6 @@
 #include "Defender.h"
 
-void initializeDefender(SDL_Rect spaceShip[2], SDL_Rect projectile[2], SDL_Rect projectileBoom[2])
+void initialiseDefender(SDL_Rect spaceShip[2], SDL_Rect projectile[2], SDL_Rect projectileBoom[2])
 {
   // Initializing the spaceship "holders", positions and projectiles
   for(int i = 0; i < 2; ++i)
@@ -54,7 +54,7 @@ void moveSpaceShip(SDL_Rect *spaceShip, int moveDir)
 
 void drawSpaceShip(SDL_Renderer *ren, SDL_Texture *tex, SDL_Rect *spaceShip, int *playerDead, char *lives, int player)
 {
-  // Initialize the sprite rect, the explosion timer and the explosion frame stuff
+  // initialise the sprite rect, the explosion timer and the explosion frame stuff
   SDL_Rect sS_sprite;
   static int destroySequence = 0;
   static int explosionSpriteTime = 0;

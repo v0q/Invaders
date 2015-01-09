@@ -1,8 +1,8 @@
-#include "Definitions.h"
+#include "Globals.h"
 #include "Invader.h"
 #include "Sounds.h"
 
-void initializeInvaders(Invader invaders[ROWS][COLS], Invader *alien, SDL_Rect invaderProjectile[COLS], int actInvaderInRow[COLS], int invaderProjectileActive[COLS])
+void initialiseInvaders(Invader invaders[ROWS][COLS], Invader *alien, SDL_Rect invaderProjectile[COLS], int actInvaderInRow[COLS], int invaderProjectileActive[COLS])
 {
   SDL_Rect pos;
   pos.w=SPRITEWIDTH;
