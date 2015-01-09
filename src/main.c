@@ -12,7 +12,7 @@
 // -----------------------------------------------------------------------------------------------------------------------
 /// @file main.c
 /// @brief Main program
-/// \todo Refactoring of the file as the main function is much too big. Find a way proper and tidy way
+/// @todo Refactoring of the file as the main function is much too big. Find a way proper and tidy way
 ///       to initialise all the required variables without winding up with functions that take an extensive
 ///       amount of parameters (initFirstScreen, initialiseScreenStuff)
 // -----------------------------------------------------------------------------------------------------------------------
