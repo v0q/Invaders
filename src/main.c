@@ -1,5 +1,7 @@
 /*
  Copyright © 2015 Teemu Lindborg
+ SDAGE 1st year Invaders Assignment
+ Initial code © by Jon Macey
 */
 
 // Including the global definitions and includes for the use of the functions and the header files for all the used functionalities that are not implemented in main.c

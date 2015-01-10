@@ -1,5 +1,7 @@
 /*
  Copyright © 2015 Teemu Lindborg
+ SDAGE 1st year Invaders Assignment
+ Initial code © by Jon Macey
 */
 
 #include "Sounds.h"
