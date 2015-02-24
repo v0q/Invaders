@@ -190,8 +190,15 @@ int main()
     // Opening the file where the highscore is stored, note that as the file is ".xxx" it's handled as a sort-of a system file
     // thus hidden in most machines, this is again done to make it a bit harder to manually edit the high scores.
     hsFile = fopen(".highscore", "r");
-    fscanf(hsFile, "%s", enchighscore);
-    fclose(hsFile);
+    if(hsFile != NULL)
+    {
+      fscanf(hsFile, "%s", enchighscore);
+      fclose(hsFile);
+    }
+    else
+    {
+      sprintf(enchighscore, "75bcd15");
+    }
 
     // Here we'll turn the "encrypted" highscore back to a readable integer by reverting it back with yet another XOR using the encryptkey
     highscore = (int)(strtol(enchighscore, NULL, 16)^encryptkey);
@@ -376,8 +383,15 @@ int main()
         scoreTexture = textureFromText(ren, font, thescore);
 
         hsFile = fopen(".highscore", "r");
-        fscanf(hsFile, "%s", enchighscore);
-        fclose(hsFile);
+        if(hsFile != NULL)
+        {
+          fscanf(hsFile, "%s", enchighscore);
+          fclose(hsFile);
+        }
+        else
+        {
+          sprintf(enchighscore, "75bcd15");
+        }
 
         highscore = (int)(strtol(enchighscore, NULL, 16)^encryptkey);
 
